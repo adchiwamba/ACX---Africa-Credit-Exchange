@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'adchiwamba@gmail.com' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validations
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['BORROWER', 'LENDER', 'INVESTOR', 'BANK', 'RETAILER', 'ADMIN'] &&
+             data.displayName is string && data.displayName.size() <= 100;
+    }
+
+    function isValidLoan(data) {
+      return data.borrowerId is string && data.borrowerId.size() <= 128 &&
+             data.amount is number && data.amount > 0 &&
+             data.status in ['DRAFT', 'PENDING', 'APPROVED', 'FUNDED', 'REJECTED', 'COMPLETED', 'DELINQUENT', 'DEFAULTED'];
+    }
+
+    // Match Blocks
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && (
+        (isOwner(userId) && isValidUser(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'currency', 'preferredCurrencies', 'country', 'is2FAEnabled', 'borrowerDetails'
+        ])) ||
+        isAdmin()
+      );
+    }
+
+    match /loans/{loanId} {
+      allow get: if isSignedIn() && (isOwner(existing().borrowerId) || isAdmin() || existing().status == 'APPROVED');
+      allow list: if isSignedIn(); // Queries must filter by borrowerId or status
+      allow create: if isSignedIn() && isValidLoan(incoming()) && incoming().borrowerId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (isOwner(existing().borrowerId) && isValidLoan(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'purpose', 'durationMonths'])) ||
+        isAdmin() ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'FUNDED') // Lenders funding
+      );
+    }
+
+    match /investments/{investmentId} {
+      allow read: if isSignedIn() && (isOwner(existing().lenderId) || isAdmin());
+      allow create: if isSignedIn() && incoming().lenderId == request.auth.uid && incoming().amount > 0;
+    }
+
+    match /repayments/{repaymentId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /auditLogs/{auditLogId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn(); // Users can log their own actions
+    }
+  }
+}

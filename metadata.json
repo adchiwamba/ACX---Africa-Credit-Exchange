@@ -1,0 +1,6 @@
+{
+  "name": "Africa Credit Exchange (ACX)",
+  "description": "The premier digital credit exchange for the African continent. Professional-grade lending infrastructure connecting institutional liquidity with African growth markets.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

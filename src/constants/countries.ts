@@ -1,0 +1,31 @@
+export const COUNTRIES = [
+  { name: 'Nigeria', code: 'NG', phone: '+234' },
+  { name: 'South Africa', code: 'ZA', phone: '+27' },
+  { name: 'Kenya', code: 'KE', phone: '+254' },
+  { name: 'Zimbabwe', code: 'ZW', phone: '+263' },
+  { name: 'Egypt', code: 'EG', phone: '+20' },
+  { name: 'Ghana', code: 'GH', phone: '+233' },
+  { name: 'Angola', code: 'AO', phone: '+244' },
+  { name: 'Botswana', code: 'BW', phone: '+267' },
+  { name: 'Cameroon', code: 'CM', phone: '+237' },
+  { name: 'Cote d\'Ivoire', code: 'CI', phone: '+225' },
+  { name: 'Ethiopia', code: 'ET', phone: '+251' },
+  { name: 'Mauritius', code: 'MU', phone: '+230' },
+  { name: 'Morocco', code: 'MA', phone: '+212' },
+  { name: 'Namibia', code: 'NA', phone: '+264' },
+  { name: 'Rwanda', code: 'RW', phone: '+250' },
+  { name: 'Senegal', code: 'SN', phone: '+221' },
+  { name: 'Tanzania', code: 'TZ', phone: '+255' },
+  { name: 'Uganda', code: 'UG', phone: '+256' },
+  { name: 'Zambia', code: 'ZM', phone: '+260' },
+  { name: 'United States', code: 'US', phone: '+1' },
+  { name: 'United Kingdom', code: 'GB', phone: '+44' },
+  { name: 'Australia', code: 'AU', phone: '+61' },
+  { name: 'Canada', code: 'CA', phone: '+1' },
+  { name: 'Germany', code: 'DE', phone: '+49' },
+  { name: 'France', code: 'FR', phone: '+33' },
+  { name: 'Singapore', code: 'SG', phone: '+65' },
+];
+
+export const CURRENCIES = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CNY', 'KES', 'NGN', 'ZWL', 'ZAR', 'GHS', 'EGP', 'TZS', 'UGX'];
+export const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Swahili', 'Shona', 'Amharic', 'Zulu', 'Hausa', 'Yoruba'];

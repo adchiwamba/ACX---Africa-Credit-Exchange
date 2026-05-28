@@ -1,0 +1,118 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Detailed profile for platform users",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["BORROWER", "LENDER", "INVESTOR", "BANK", "RETAILER", "ADMIN"] },
+        "creditScore": { "type": "number" },
+        "kycStatus": { "type": "string", "enum": ["PENDING", "VERIFIED", "REJECTED"] },
+        "currency": { "type": "string" },
+        "preferredCurrencies": { "type": "array" },
+        "balance": { "type": "number" },
+        "country": { "type": "string" },
+        "borrowerDetails": {
+          "type": "object",
+          "properties": {
+            "profile": { "type": "object" },
+            "uploads": { "type": "object" },
+            "scoreResult": { "type": "object" },
+            "lastUpdated": { "type": "string" }
+          }
+        },
+        "is2FAEnabled": { "type": "boolean" },
+        "isBlacklisted": { "type": "boolean" },
+        "isVerified": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "role", "displayName"]
+    },
+    "Loan": {
+      "title": "Loan Request",
+      "description": "A loan request application",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "borrowerId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "purpose": { "type": "string" },
+        "durationMonths": { "type": "number" },
+        "interestRate": { "type": "number" },
+        "status": { "type": "string", "enum": ["DRAFT", "PENDING", "APPROVED", "FUNDED", "REJECTED", "COMPLETED", "DELINQUENT", "DEFAULTED"] },
+        "createdAt": { "type": "string" },
+        "approvedAt": { "type": "string" },
+        "fundedAt": { "type": "string" },
+        "creditScoreSnapshot": { "type": "number" }
+      },
+      "required": ["id", "borrowerId", "amount", "status", "createdAt"]
+    },
+    "Investment": {
+      "title": "Investment",
+      "description": "Investment made by a lender in a loan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "lenderId": { "type": "string" },
+        "loanId": { "type": "string" },
+        "amount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "lenderId", "loanId", "amount", "createdAt"]
+    },
+    "Repayment": {
+      "title": "Repayment",
+      "description": "Loan repayment schedule or installment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "loanId": { "type": "string" },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string" },
+        "paidDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "PAID", "OVERDUE"] }
+      },
+      "required": ["id", "loanId", "amount", "dueDate", "status"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "System audit logs for security and tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "eventType": { "type": "string" },
+        "description": { "type": "string" },
+        "severity": { "type": "string", "enum": ["INFO", "WARNING", "CRITICAL"] }
+      },
+      "required": ["id", "timestamp", "userId", "eventType", "severity"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Platform user profiles"
+    },
+    "/loans/{loanId}": {
+      "schema": "Loan",
+      "description": "Loan applications and states"
+    },
+    "/investments/{investmentId}": {
+      "schema": "Investment",
+      "description": "Investment tracking"
+    },
+    "/repayments/{repaymentId}": {
+      "schema": "Repayment",
+      "description": "Scheduled repayments"
+    },
+    "/auditLogs/{auditLogId}": {
+      "schema": "AuditLog",
+      "description": "System activity logs"
+    }
+  }
+}
