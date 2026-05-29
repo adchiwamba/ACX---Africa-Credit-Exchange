@@ -1,9 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, Shield, Zap, ArrowRight, Users, Landmark, Building, X, Phone, Lock, Cpu, Camera, Briefcase, UserPlus, Key, RefreshCw, FileText, User } from 'lucide-react';
+import { 
+  Globe, Shield, Zap, ArrowRight, Users, Landmark, Building, X, Phone, 
+  Lock, Cpu, Camera, Briefcase, UserPlus, Key, RefreshCw, FileText, User,
+  Twitter, Linkedin, Mail, CheckCircle, Wallet, Activity
+} from 'lucide-react';
 import { UserRole, UserProfile } from '../types';
 import { COUNTRIES, CURRENCIES, LANGUAGES } from '../constants/countries';
 import { MOCK_USERS } from '../lib/store';
+import Logo from '../img/logo.png';
+import { Link } from 'react-router-dom';
+
+
+// Placeholder for Guava logo - replace with actual image import
 
 interface LandingPageProps {
   onLogin: (user: UserProfile) => void;
@@ -42,6 +51,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
 
   const [simulationActive, setSimulationActive] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentYear = new Date().getFullYear();
 
   const resetFormFields = (keepRoleAndStep = false) => {
     setLoginEmail('');
@@ -82,7 +92,6 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
     }
   };
 
-  // Erase previous user inputs when auth modal opens, closes, or authMode changes
   useEffect(() => {
     setLoginEmail('');
     setLoginPassword('');
@@ -110,7 +119,6 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
     }
   }, [showAuthModal, authMode]);
 
-  // Handle auto-depict: Country Code -> Country
   useEffect(() => {
     if (formData.phoneCode) {
       const match = COUNTRIES.find(c => c.phone === formData.phoneCode);
@@ -120,7 +128,6 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
     }
   }, [formData.phoneCode]);
 
-  // Reciprocal: Country -> Country Code
   useEffect(() => {
     if (formData.country) {
       const match = COUNTRIES.find(c => c.name === formData.country);
@@ -199,11 +206,8 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
   const handleLoginSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    // Check against mock users
     const user = MOCK_USERS.find(u => u.email === loginEmail);
     if (user) {
-      // In a real app, we'd verify password here
-      // For demo, we accept the mock users
       onLogin(user);
     } else {
       alert("Invalid credentials or user not found. Please register if you don't have an account.");
@@ -211,7 +215,6 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
   };
 
   const handleAdminLogin = () => {
-    // Hidden admin login using password from environment (fallback to 'admin123' for demo)
     const secret = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
     if (adminPassword === secret) {
       const adminUser = MOCK_USERS.find(u => u.role === UserRole.ADMIN);
@@ -243,39 +246,39 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xl flex items-center justify-center p-6"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xl flex items-center justify-center p-4"
           >
              <motion.div 
                initial={{ scale: 0.9, y: 20 }}
                animate={{ scale: 1, y: 0 }}
-               className="bg-white dark:bg-[#0F172A] w-full max-w-lg rounded-[48px] overflow-hidden shadow-2xl relative"
+               className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl relative"
              >
                 <button 
                    onClick={() => { setShowAuthModal(false); resetFormFields(); }}
-                   className="absolute top-8 right-8 p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all text-gray-400"
+                   className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-all text-gray-400 cursor-pointer z-10"
                 >
-                   <X className="w-6 h-6" />
+                   <X className="w-5 h-5" />
                 </button>
 
-                <div className="p-6 md:p-8">
+                <div className="p-6">
                    {authMode === 'register' ? (
                      <>
-                       <div className="mb-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex gap-2 flex-1 mr-4">
+                       <div className="mb-5">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex gap-1.5 flex-1 mr-3">
                                {[1, 2, 3, 4, 5].map(i => (
-                                 <div key={i} className={`h-1 flex-1 rounded-full ${step >= i ? 'bg-guava-orange' : 'bg-gray-100 dark:bg-white/5'}`} />
+                                 <div key={i} className={`h-1 flex-1 rounded-full ${step >= i ? 'bg-guava-orange' : 'bg-gray-100'}`} />
                                ))}
                             </div>
                             <button 
                               onClick={() => setAuthMode('login')}
-                              className="text-[10px] font-black uppercase tracking-widest text-guava-orange hover:underline shrink-0"
+                              className="text-[10px] font-black uppercase tracking-widest text-guava-orange hover:underline shrink-0 cursor-pointer"
                             >
                               Login Instead
                             </button>
                           </div>
-                          <h2 className="text-3xl font-black tracking-tighter italic dark:text-white">Initialize Portal Node</h2>
-                          <p className="text-gray-400 text-sm font-medium">
+                          <h2 className="text-2xl font-black tracking-tighter">Initialize Portal Node</h2>
+                          <p className="text-gray-400 text-xs font-medium">
                             Step {step}: {
                               step === 1 ? 'Archetype' : 
                               step === 2 ? 'Identity' : 
@@ -287,7 +290,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                        </div>
 
                        {step === 1 && (
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {[
                               { role: UserRole.LENDER, title: 'Business', icon: Landmark, desc: 'Deploy capital, manage credit lines, or run merchant/retailer nodes.' },
                               { role: UserRole.BORROWER, title: 'Consumer', icon: User, desc: 'Initialize credit passport, borrow, or buy-now pay-later.' }
@@ -299,69 +302,69 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                                   setSelectedRole(r.role); 
                                   setStep(2); 
                                 }}
-                                className={`p-4 rounded-3xl border-2 text-left transition-all ${selectedRole === r.role ? 'border-guava-orange bg-orange-50/50' : 'border-gray-50 dark:border-white/5 hover:border-gray-200'}`}
+                                className={`p-4 rounded-2xl border-2 text-left transition-all cursor-pointer ${selectedRole === r.role ? 'border-guava-orange bg-orange-50/50' : 'border-gray-100 hover:border-gray-200'}`}
                               >
-                                 <r.icon className={`w-6 h-6 mb-3 ${selectedRole === r.role ? 'text-guava-orange' : 'text-gray-300'}`} />
-                                 <h4 className="text-lg font-black italic mb-1 dark:text-white">{r.title}</h4>
-                                 <p className="text-[10px] text-gray-400 font-medium">{r.desc}</p>
+                                 <r.icon className={`w-5 h-5 mb-2 ${selectedRole === r.role ? 'text-guava-orange' : 'text-gray-400'}`} />
+                                 <h4 className="text-base font-black italic mb-1">{r.title}</h4>
+                                 <p className="text-[9px] text-gray-400 font-medium">{r.desc}</p>
                               </button>
                             ))}
                          </div>
                        )}
 
                        {step === 2 && (
-                         <div className="space-y-6">
-                            <div className="space-y-2">
+                         <div className="space-y-4">
+                            <div className="space-y-1.5">
                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Full Name / Entity Name</label>
                                <input 
                                  type="text" 
                                  value={formData.displayName}
                                  onChange={e => setFormData({...formData, displayName: e.target.value})}
                                  placeholder="e.g. Phoenix Ventures"
-                                 className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                                 className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-black outline-none focus:border-guava-orange transition-all"
                                />
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Communication Endpoint (Email)</label>
                                <input 
                                  type="email" 
                                  value={formData.email}
                                  onChange={e => setFormData({...formData, email: e.target.value})}
                                  placeholder="node@acx.africa"
-                                 className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                                 className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-black outline-none focus:border-guava-orange transition-all"
                                />
                             </div>
-                            <div className="flex gap-4 pt-6">
-                               <button onClick={() => setStep(1)} className="flex-1 py-5 border border-gray-100 rounded-3xl font-black text-xs uppercase tracking-widest text-gray-400">Back</button>
-                               <button onClick={() => setStep(3)} className="flex-2 py-5 bg-guava-dark text-white rounded-3xl font-black text-xs uppercase tracking-widest transition-all hover:bg-guava-orange">Continue</button>
+                            <div className="flex gap-3 pt-4">
+                               <button onClick={() => setStep(1)} className="flex-1 py-3 border border-gray-100 rounded-xl font-black text-xs uppercase tracking-widest text-gray-400 cursor-pointer">Back</button>
+                               <button onClick={() => setStep(3)} className="flex-1 py-3 bg-guava-dark text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:bg-guava-orange cursor-pointer">Continue</button>
                             </div>
                          </div>
                        )}
 
                        {step === 3 && (
-                         <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">
+                         <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                               <div className="space-y-1.5">
+                                  <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">
                                     <Phone className="w-3 h-3" /> Dial Code
                                   </label>
                                   <select 
                                     value={formData.phoneCode}
                                     onChange={e => setFormData({...formData, phoneCode: e.target.value})}
-                                    className="w-full px-6 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white appearance-none"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-black outline-none focus:border-guava-orange transition-all appearance-none cursor-pointer"
                                   >
                                      <option value="" className="text-black">Select Code</option>
                                      {(COUNTRIES || []).map(c => <option key={c.code} value={c.phone} className="text-black">{c.phone} ({c.code})</option>)}
                                   </select>
                                </div>
-                               <div className="space-y-2">
-                                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">
+                               <div className="space-y-1.5">
+                                  <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">
                                     <Globe className="w-3 h-3" /> Host Nation
                                   </label>
                                   <select 
                                     value={formData.country}
                                     onChange={e => setFormData({...formData, country: e.target.value})}
-                                    className="w-full px-6 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white appearance-none"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-black outline-none focus:border-guava-orange transition-all appearance-none cursor-pointer"
                                   >
                                      <option value="" className="text-black">Select Country</option>
                                      {(COUNTRIES || []).map(c => <option key={c.code} value={c.name} className="text-black">{c.name}</option>)}
@@ -369,14 +372,14 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                                </div>
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Authorized Asset Classes (Currencies)</label>
-                               <div className="flex flex-wrap gap-2">
-                                  {CURRENCIES.map(cur => (
+                               <div className="flex flex-wrap gap-1.5">
+                                  {CURRENCIES.slice(0, 6).map(cur => (
                                     <button 
                                       key={cur}
                                       onClick={() => toggleCurrency(cur)}
-                                      className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border ${formData.preferredCurrencies.includes(cur) ? 'bg-black text-white border-black' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all border cursor-pointer ${formData.preferredCurrencies.includes(cur) ? 'bg-black text-white border-black' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
                                     >
                                        {cur}
                                     </button>
@@ -384,14 +387,14 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                                </div>
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Operational Languages</label>
-                               <div className="flex flex-wrap gap-2">
-                                  {LANGUAGES.map(lang => (
+                               <div className="flex flex-wrap gap-1.5">
+                                  {LANGUAGES.slice(0, 5).map(lang => (
                                     <button 
                                       key={lang}
                                       onClick={() => toggleLanguage(lang)}
-                                      className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border ${formData.languages.includes(lang) ? 'bg-guava-green text-white border-guava-green' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all border cursor-pointer ${formData.languages.includes(lang) ? 'bg-guava-green text-white border-guava-green' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
                                     >
                                        {lang}
                                     </button>
@@ -399,33 +402,33 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                                </div>
                             </div>
 
-                            <div className="flex gap-4 pt-4">
-                               <button onClick={() => setStep(2)} className="flex-1 py-5 border border-gray-100 rounded-3xl font-black text-xs uppercase tracking-widest text-gray-400">Back</button>
-                               <button onClick={() => setStep(4)} className="flex-2 py-5 bg-guava-dark text-white rounded-3xl font-black text-xs uppercase tracking-widest transition-all hover:bg-guava-orange">Continue</button>
+                            <div className="flex gap-3 pt-3">
+                               <button onClick={() => setStep(2)} className="flex-1 py-3 border border-gray-100 rounded-xl font-black text-xs uppercase tracking-widest text-gray-400 cursor-pointer">Back</button>
+                               <button onClick={() => setStep(4)} className="flex-1 py-3 bg-guava-dark text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:bg-guava-orange cursor-pointer">Continue</button>
                             </div>
                          </div>
                        )}
 
                        {step === 4 && (
-                         <div className="space-y-6">
-                            <div className="flex flex-col items-center gap-4">
+                         <div className="space-y-5">
+                            <div className="flex flex-col items-center gap-3">
                                <div className="relative group">
-                                  <div className="w-32 h-32 bg-gray-50 dark:bg-white/5 rounded-[40px] border-4 border-dashed border-gray-100 dark:border-white/10 flex items-center justify-center overflow-hidden transition-all group-hover:border-guava-orange">
+                                  <div className="w-24 h-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-guava-orange">
                                      {formData.photoURL ? (
                                        <img src={formData.photoURL} alt="Node Identity" className="w-full h-full object-cover" />
                                      ) : (
-                                       <div className="text-center p-4">
-                                          <Camera className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                                          <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">Upload Identity</p>
+                                       <div className="text-center p-3">
+                                          <Camera className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                                          <p className="text-[7px] font-black uppercase tracking-widest text-gray-400">Upload</p>
                                        </div>
                                      )}
                                   </div>
                                   <button 
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={!!simulationActive}
-                                    className="absolute -bottom-2 -right-2 w-10 h-10 bg-guava-orange text-white rounded-2xl flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50"
+                                    className="absolute -bottom-2 -right-2 w-8 h-8 bg-guava-orange text-white rounded-xl flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                                   >
-                                    {simulationActive === 'photo' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <UserPlus className="w-5 h-5" />}
+                                    {simulationActive === 'photo' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                                   </button>
                                   <input 
                                     type="file" 
@@ -435,95 +438,85 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                                     className="hidden" 
                                   />
                                </div>
-                               <p className="text-[10px] font-bold text-gray-400 text-center max-w-[200px]">
-                                  {selectedRole === UserRole.LENDER ? 'Institutional Logo or Seal' : 'Personal Identity Representation'}
+                               <p className="text-[8px] font-bold text-gray-400 text-center max-w-[180px]">
+                                  {selectedRole === UserRole.LENDER ? 'Institutional Logo' : 'Personal Identity'}
                                 </p>
                             </div>
 
                              {selectedRole === UserRole.LENDER && (
-                               <div className="grid grid-cols-2 gap-6">
-                                  <div className="space-y-2">
-                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4 flex items-center gap-2">
-                                        <Briefcase className="w-3 h-3" /> Industry
-                                     </label>
+                               <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                     <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-3">Industry</label>
                                      <select 
                                        value={formData.organizationDetails.industry}
                                        onChange={e => setFormData({...formData, organizationDetails: {...formData.organizationDetails, industry: e.target.value}})}
-                                       className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                                       className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-black outline-none focus:border-guava-orange transition-all cursor-pointer"
                                      >
-                                        <option value="">Select Industry</option>
+                                        <option value="">Select</option>
                                         <option value="Fintech">Fintech</option>
                                         <option value="Retailer">Retailer</option>
-                                        <option value="Traditional Banking">Traditional Banking</option>
-                                        <option value="Venture Capital">Venture Capital</option>
-                                        <option value="Private Equity">Private Equity</option>
+                                        <option value="Banking">Banking</option>
+                                        <option value="VC">VC</option>
                                      </select>
                                   </div>
-                                  <div className="space-y-2">
-                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4 flex items-center gap-2">
-                                        <Users className="w-3 h-3" /> Company Size
-                                     </label>
+                                  <div className="space-y-1">
+                                     <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-3">Company Size</label>
                                      <select 
                                        value={formData.organizationDetails.companySize}
                                        onChange={e => setFormData({...formData, organizationDetails: {...formData.organizationDetails, companySize: e.target.value}})}
-                                       className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                                       className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-black outline-none focus:border-guava-orange transition-all cursor-pointer"
                                      >
-                                        <option value="">Select Size</option>
+                                        <option value="">Select</option>
                                         <option value="1-10">1-10</option>
                                         <option value="11-50">11-50</option>
                                         <option value="51-200">51-200</option>
                                         <option value="200+">200+</option>
                                      </select>
                                   </div>
-                                  <div className="space-y-2">
-                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4 flex items-center gap-2">
-                                        <UserPlus className="w-3 h-3" /> Contact Person
-                                     </label>
+                                  <div className="space-y-1">
+                                     <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-3">Contact Person</label>
                                      <input 
                                        type="text" 
-                                       placeholder="e.g. Chief Risk Officer"
+                                       placeholder="Name"
                                        value={formData.organizationDetails.contactPerson}
                                        onChange={e => setFormData({...formData, organizationDetails: {...formData.organizationDetails, contactPerson: e.target.value}})}
-                                       className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                                       className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-black outline-none focus:border-guava-orange transition-all"
                                      />
                                   </div>
-                                  <div className="space-y-2">
-                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4 flex items-center gap-2">
-                                        <FileText className="w-3 h-3 text-guava-orange" /> Tax ID
-                                     </label>
+                                  <div className="space-y-1">
+                                     <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 ml-3">Tax ID</label>
                                      <input 
                                        type="text" 
-                                       placeholder="e.g. TIN-8293"
+                                       placeholder="TIN-8293"
                                        value={formData.organizationDetails.taxId || ''}
                                        onChange={e => setFormData({...formData, organizationDetails: {...formData.organizationDetails, taxId: e.target.value}})}
-                                       className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                                       className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-black outline-none focus:border-guava-orange transition-all"
                                      />
                                   </div>
                                </div>
                             )}
 
-                            <div className="flex gap-4 pt-4">
-                               <button onClick={() => setStep(3)} className="flex-1 py-5 border border-gray-100 rounded-3xl font-black text-xs uppercase tracking-widest text-gray-400">Back</button>
-                               <button onClick={initiate2FA} className="flex-2 py-5 bg-guava-dark text-white rounded-3xl font-black text-xs uppercase tracking-widest transition-all hover:bg-guava-orange">Setup Security</button>
+                            <div className="flex gap-3 pt-3">
+                               <button onClick={() => setStep(3)} className="flex-1 py-3 border border-gray-100 rounded-xl font-black text-xs uppercase tracking-widest text-gray-400 cursor-pointer">Back</button>
+                               <button onClick={initiate2FA} className="flex-1 py-3 bg-guava-dark text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:bg-guava-orange cursor-pointer">Setup Security</button>
                             </div>
                          </div>
                        )}
 
                        {step === 5 && (
-                         <div className="space-y-8 text-center">
+                         <div className="space-y-6 text-center">
                             <div className="flex justify-center">
-                               <div className="w-20 h-20 bg-orange-50 rounded-[28px] flex items-center justify-center text-guava-orange animate-pulse">
-                                  <Key className="w-10 h-10" />
+                               <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center text-guava-orange animate-pulse">
+                                  <Key className="w-8 h-8" />
                                </div>
                             </div>
                             <div className="space-y-2">
-                               <h3 className="text-2xl font-black text-guava-dark italic">Two-Factor Authorization</h3>
-                               <p className="text-xs text-gray-400 font-medium max-w-sm mx-auto">We've sent a 6-digit synchronization key to <span className="text-guava-dark font-bold font-mono">{formData.email}</span>. Enter it below to authorize this session.</p>
+                               <h3 className="text-xl font-black text-guava-dark italic">Two-Factor Authorization</h3>
+                               <p className="text-xs text-gray-400 font-medium">Enter the 6-digit key sent to <span className="text-guava-dark font-bold font-mono text-xs">{formData.email}</span></p>
                                
-                               {/* Development Mode Helper */}
-                               <div className="mt-4 p-4 bg-orange-50/50 border border-orange-100 rounded-2xl text-left">
-                                  <p className="text-[9px] font-black uppercase text-guava-orange tracking-widest mb-1">Development Mode Active</p>
-                                  <p className="text-[10px] text-gray-500 italic leading-relaxed">System is in simulation mode. The 6-digit synchronization key is: <span className="font-mono font-black text-guava-dark select-all bg-gray-50 px-2 py-1 rounded-md border border-gray-100">{expectedCode}</span></p>
+                               <div className="mt-3 p-3 bg-orange-50/50 border border-orange-100 rounded-xl text-left">
+                                  <p className="text-[8px] font-black uppercase text-guava-orange tracking-widest mb-1">Development Mode</p>
+                                  <p className="text-[9px] text-gray-500">Key: <span className="font-mono font-black text-guava-dark">{expectedCode}</span></p>
                                </div>
                             </div>
                             
@@ -532,33 +525,33 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                               maxLength={6}
                               value={twoFactorCode}
                               onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
-                              placeholder="0 0 0 0 0 0"
-                              className="w-full max-w-[240px] mx-auto px-4 py-6 bg-gray-50 border border-gray-100 rounded-3xl text-3xl font-black text-center tracking-[0.5em] outline-none focus:border-guava-orange transition-all font-mono"
+                              placeholder="000000"
+                              className="w-full max-w-[200px] mx-auto px-3 py-4 bg-gray-50 border border-gray-100 rounded-xl text-2xl font-black text-center tracking-[0.3em] outline-none focus:border-guava-orange transition-all font-mono"
                             />
 
-                            <div className="flex gap-4 pt-8">
-                               <button onClick={() => setStep(4)} className="flex-1 py-5 border border-gray-100 rounded-3xl font-black text-xs uppercase tracking-widest text-gray-400">Back</button>
-                               <button onClick={verifyAndFinalize} className="flex-2 py-5 bg-guava-orange text-white rounded-3xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 group">
-                                  Finalize Node Activation
-                                  <Shield className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <div className="flex gap-3 pt-4">
+                               <button onClick={() => setStep(4)} className="flex-1 py-3 border border-gray-100 rounded-xl font-black text-xs uppercase tracking-widest text-gray-400 cursor-pointer">Back</button>
+                               <button onClick={verifyAndFinalize} className="flex-1 py-3 bg-guava-orange text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 group cursor-pointer">
+                                  Activate
+                                  <Shield className="w-3 h-3" />
                                </button>
                             </div>
-                            <button onClick={initiate2FA} disabled={isSendingCode} className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-guava-orange transition-colors">
+                            <button onClick={initiate2FA} disabled={isSendingCode} className="text-[9px] font-black uppercase tracking-widest text-gray-300 hover:text-guava-orange transition-colors cursor-pointer">
                               {isSendingCode ? 'Sending...' : 'Resend Code'}
                             </button>
                          </div>
                        )}
                      </>
                    ) : (
-                     <div className="space-y-8">
-                       <div className="mb-8">
-                          <h2 className="text-2xl font-black tracking-tighter italic dark:text-white">Welcome Back</h2>
-                          <p className="text-gray-400 text-sm font-medium">Enter your credentials to access the ACX terminal.</p>
+                     <div className="space-y-6">
+                       <div className="mb-4">
+                          <h2 className="text-2xl font-black tracking-tighter">Welcome Back</h2>
+                          <p className="text-gray-400 text-xs font-medium">Enter your credentials to access the ACX terminal.</p>
                        </div>
 
-                       <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Access Perspective</label>
-                          <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-3">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-3">Access Perspective</label>
+                          <div className="grid grid-cols-2 gap-3">
                              <button 
                                type="button"
                                onClick={() => {
@@ -567,10 +560,10 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                                  setLoginEmail('lender@example.com');
                                  setLoginPassword('password');
                                }}
-                               className={`py-2 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                               className={`py-2 rounded-xl border-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                                  selectedRole === UserRole.LENDER 
                                    ? "border-guava-orange bg-orange-50 text-guava-orange" 
-                                   : "border-gray-50 dark:border-white/5 text-gray-400 border-gray-100"
+                                   : "border-gray-100 text-gray-400"
                                }`}
                              >
                                Business Portal
@@ -583,10 +576,10 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                                  setLoginEmail('borrower@example.com');
                                  setLoginPassword('password');
                                }}
-                               className={`py-2 rounded-2xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                               className={`py-2 rounded-xl border-2 text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                                  selectedRole === UserRole.BORROWER 
                                    ? "border-guava-orange bg-orange-50 text-guava-orange" 
-                                   : "border-gray-50 dark:border-white/5 text-gray-400 border-gray-100"
+                                   : "border-gray-100 text-gray-400"
                                }`}
                              >
                                Consumer Portal
@@ -594,46 +587,46 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                           </div>
                        </div>
 
-                       <form onSubmit={handleLoginSubmit} className="space-y-6">
-                         <div className="space-y-2">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Credential Identifier (Email)</label>
+                       <form onSubmit={handleLoginSubmit} className="space-y-4">
+                         <div className="space-y-1.5">
+                           <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-3">Email</label>
                            <input 
                              type="email" 
                              required
                              value={loginEmail}
                              onChange={e => setLoginEmail(e.target.value)}
                              placeholder="user@example.com"
-                             className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                             className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-black outline-none focus:border-guava-orange transition-all"
                            />
                          </div>
-                         <div className="space-y-2">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Authorization Token (Password)</label>
+                         <div className="space-y-1.5">
+                           <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-3">Password</label>
                            <input 
                              type="password" 
                              required
                              value={loginPassword}
                              onChange={e => setLoginPassword(e.target.value)}
                              placeholder="••••••••"
-                             className="w-full px-6 py-3 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-sm font-black outline-none focus:border-guava-orange transition-all dark:text-white"
+                             className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-black outline-none focus:border-guava-orange transition-all"
                            />
                          </div>
 
-                         <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl">
-                           <p className="text-[9px] font-black uppercase text-guava-orange tracking-widest mb-1">Demo Access</p>
-                           <p className="text-[10px] text-gray-500 italic">Try: <span className="font-mono font-bold text-guava-dark">borrower@example.com</span> or <span className="font-mono font-bold text-guava-dark">lender@example.com</span></p>
+                         <div className="p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                           <p className="text-[8px] font-black uppercase text-guava-orange tracking-widest mb-1">Demo Access</p>
+                           <p className="text-[9px] text-gray-500">borrower@example.com / lender@example.com</p>
                          </div>
 
-                         <div className="flex flex-col gap-2 pt-3">
+                         <div className="flex flex-col gap-2 pt-2">
                            <button 
                              type="submit"
-                             className="w-full py-3 bg-guava-orange text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-guava-dark transition-all shadow-xl shadow-guava-orange/20"
+                             className="w-full py-3 bg-guava-orange text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-guava-dark transition-all shadow-lg shadow-guava-orange/20 cursor-pointer"
                            >
                              Log In to ACX
                            </button>
                            <button 
                              type="button"
                              onClick={() => setAuthMode('register')}
-                             className="w-full py-3 border border-gray-100 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400 hover:text-guava-orange transition-colors"
+                             className="w-full py-3 border border-gray-100 rounded-xl font-black text-xs uppercase tracking-widest text-gray-400 hover:text-guava-orange transition-colors cursor-pointer"
                            >
                              Create New Portal Node
                            </button>
@@ -653,22 +646,22 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-3xl flex items-center justify-center p-6"
+            className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-3xl flex items-center justify-center p-4"
           >
              <motion.div 
                initial={{ scale: 0.8, y: 20 }}
                animate={{ scale: 1, y: 0 }}
                className="w-full max-w-sm"
              >
-                <div className="flex flex-col items-center text-center space-y-8">
-                   <div className="w-20 h-20 bg-guava-orange rounded-3xl flex items-center justify-center animate-pulse">
-                      <Lock className="w-10 h-10 text-white" />
+                <div className="flex flex-col items-center text-center space-y-6">
+                   <div className="w-16 h-16 bg-guava-orange rounded-2xl flex items-center justify-center animate-pulse">
+                      <Lock className="w-8 h-8 text-white" />
                    </div>
-                   <div className="space-y-2">
-                      <h2 className="text-2xl font-black text-white italic tracking-tighter">RESTRICTED ACCESS</h2>
-                      <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest text-center">System Administrator Authorization Required</p>
+                   <div className="space-y-1">
+                      <h2 className="text-xl font-black text-white italic tracking-tighter">RESTRICTED ACCESS</h2>
+                      <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest">Administrator Authorization Required</p>
                    </div>
-                   <div className="w-full space-y-4">
+                   <div className="w-full space-y-3">
                       <input 
                         type="password" 
                         autoFocus
@@ -676,310 +669,361 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                         onChange={e => setAdminPassword(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
                         placeholder="••••••••"
-                        className="w-full px-8 py-5 bg-white/5 border border-white/10 rounded-2xl text-center text-xl text-white outline-none focus:border-guava-orange transition-all font-mono"
+                        className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-xl text-center text-white outline-none focus:border-guava-orange transition-all font-mono"
                       />
-                      <div className="flex gap-4">
+                      <div className="flex gap-3">
                          <button 
                            onClick={() => { setShowAdminLogin(false); setAdminPassword(''); }}
-                           className="flex-1 py-4 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+                           className="flex-1 py-3 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors cursor-pointer"
                          >
                             Abort
                          </button>
                          <button 
                            onClick={handleAdminLogin}
-                           className="flex-1 py-4 bg-guava-orange text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 group"
+                           className="flex-1 py-3 bg-guava-orange text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 group cursor-pointer"
                          >
                             Authorize
-                            <Cpu className="w-4 h-4" />
+                            <Cpu className="w-3 h-3" />
                          </button>
                       </div>
                    </div>
-                   <p className="text-white/20 text-[8px] font-bold tracking-widest uppercase">Encryption Mode: AES-256-GCM ACTIVE</p>
+                   <p className="text-white/20 text-[7px] font-bold tracking-widest uppercase">Encryption Mode: AES-256-GCM ACTIVE</p>
                 </div>
              </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <nav className="h-20 flex items-center justify-between px-8 max-w-7xl mx-auto cursor-default">
+      {/* Fixed Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 h-14 flex items-center justify-between px-4 md:px-8 max-w-7xl mx-auto">
         <div 
           onClick={handleLogoClick}
-          className="text-2xl font-black tracking-tighter italic flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
+          className="text-xl md:text-2xl font-black tracking-tighter italic flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
         >
-          <div className="w-8 h-8 bg-guava-orange rounded-full flex items-center justify-center">
-            <div className="w-3 h-3 bg-guava-green rounded-full translate-x-1 -translate-y-1" />
+          <div className="w-7 h-7 bg-guava-orange rounded-full flex items-center justify-center">
+            <div className="w-2.5 h-2.5 bg-guava-green rounded-full translate-x-1 -translate-y-1" />
           </div>
           ACX
         </div>
-        <div className="flex items-center gap-8">
-          <a href="#features" className="text-sm font-bold opacity-40 hover:opacity-100 transition-opacity">Features</a>
-          <a href="#network" className="text-sm font-bold opacity-40 hover:opacity-100 transition-opacity">Network</a>
+        <div className="flex items-center gap-4 md:gap-8">
+          <Link to={'/how-it-works'} className="text-xs md:text-sm font-bold opacity-40 hover:opacity-100 transition-opacity cursor-pointer">
+            How It Works
+          </Link>
+          {/* <a href="#features" className="text-xs md:text-sm font-bold opacity-40 hover:opacity-100 transition-opacity cursor-pointer">Features</a> */}
           <button 
             onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
-            className="text-sm font-bold opacity-40 hover:opacity-100 transition-opacity"
+            className="text-xs md:text-sm font-bold opacity-40 hover:opacity-100 transition-opacity cursor-pointer"
           >
             Login
           </button>
           <button 
             onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
-            className="text-sm font-black uppercase tracking-widest hover:text-guava-orange transition-colors"
+            className="text-xs md:text-sm font-black uppercase tracking-widest hover:text-guava-orange transition-colors cursor-pointer"
           >
-            Access Terminal
+            Access
           </button>
         </div>
       </nav>
 
-      <section className="pt-20 pb-32 px-6 overflow-hidden">
-        <div className="max-w-7xl mx-auto">
-           <div className="grid lg:grid-cols-2 gap-20 items-center mb-32">
-            <div className="max-w-2xl">
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 text-[10px] font-bold uppercase tracking-widest mb-6 text-guava-orange border border-orange-100"
-              >
-                <Zap className="w-3 h-3" />
-                Next-Gen Liquidity Layer
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="space-y-4 mb-8"
-              >
-                <h1 className="text-6xl md:text-7xl font-black tracking-tighter leading-[0.85]">
-                  Africa Credit <br /> 
-                  Exchange <span className="font-serif italic font-normal text-guava-green">Portal</span>.
-                </h1>
-                <p className="text-lg font-black uppercase tracking-[0.4em] text-guava-orange">
-                  Powered by Guava
-                </p>
-              </motion.div>
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-lg text-gray-500 max-w-md mb-10 leading-snug"
-              >
-                The unified liquidity layer for the African continent. Connecting local growth markets with institutional capital through the Pan-African Credit Engine.
-              </motion.p>
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
-                  className="group flex items-center gap-3 px-8 py-4 bg-guava-orange text-white rounded-full font-bold hover:scale-105 transition-all text-lg shadow-xl shadow-guava-orange/20"
+      {/* Add padding-top to account for fixed navbar */}
+      <div >
+        {/* Hero Section */}
+        <section className=" pb-16 px-4 md:px-6 overflow-hidden bg-gradient-to-b from-white via-orange-50/20 to-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 md:gap-16 items-center">
+              <div>
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 text-[10px] md:text-[11px] font-black uppercase tracking-wider mb-4 text-guava-orange border border-orange-100"
                 >
-                  Join the Network
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button 
-                  onClick={() => {
-                    const el = document.getElementById('network');
-                    if (el) {
-                      const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
-                      window.scrollTo({ top: y, behavior: 'smooth' });
-                    }
-                  }}
-                  className="px-8 py-4 border border-gray-200 rounded-full font-bold text-lg text-guava-dark hover:border-guava-orange hover:bg-gray-50 transition-all flex items-center gap-3 group"
+                  <Zap className="w-3 h-3" />
+                  AI-Powered Credit & Liquidity Engine
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8 }}
+                  className="space-y-4 mb-6"
                 >
-                  <Globe className="w-5 h-5 text-guava-orange" />
-                  Asset Explorer
-                </button>
+                  <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-[1.1]">
+                    Unlock Africa's <br /> 
+                    <span className="bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent">Financial Potential</span>
+                  </h1>
+                  <p className="text-base md:text-lg text-gray-600 leading-relaxed max-w-lg">
+                    The unified platform for AI-powered credit scoring and liquidity access across African markets. 
+                    Each user receives a dynamic credit score based on their loan history and repayment behavior.
+                  </p>
+
+                  <div className='flex'>
+                    <div>Powered by: </div>
+
+                    <a href={'https://guava.africa'} target='_blank' rel="noopener noreferrer" className='z-100' onClick={(e) => e.stopPropagation()}>
+                    <img
+                      src={Logo}
+                      alt="Guava Africa Logo"
+                      width={70}
+                      height={40}
+                      className="ml-2 z--100"
+                    />
+                    </a>
+                  </div>
+                </motion.div>
+                
+                <div className="flex flex-wrap items-center gap-4 mb-8">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-guava-green" />
+                    <span className="text-xs md:text-sm font-medium">AI Credit Scoring</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-guava-green" />
+                    <span className="text-xs md:text-sm font-medium">Instant Liquidity</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-guava-green" />
+                    <span className="text-xs md:text-sm font-medium">Multi-Currency</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <button 
+                    onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
+                    className="group flex items-center justify-center gap-2 px-6 py-3 bg-guava-orange text-white rounded-full font-bold hover:scale-105 transition-all text-sm md:text-base shadow-lg shadow-guava-orange/20 cursor-pointer w-full sm:w-auto"
+                  >
+                    Start Building Credit
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                  <Link to={'/how-it-works'} 
+                    className="px-6 py-3 border-2 border-gray-200 rounded-full font-bold text-sm md:text-base text-guava-dark hover:border-guava-orange hover:bg-gray-50 transition-all flex items-center justify-center gap-2 group cursor-pointer w-full sm:w-auto"
+                  >
+                    <Globe className="w-4 h-4 text-guava-orange" />
+                    How It Works
+                  </Link>
+                </div>
+              </div>
+              
+              {/* African Continent Map */}
+              <div className="relative">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8 }}
+                  className="relative rounded-2xl md:rounded-3xl p-4 md:p-6 overflow-hidden"
+                >
+                  <div className="text-center mb-3 md:mb-4">
+                    <h3 className="text-white font-bold text-base md:text-lg tracking-tighter">African Continent</h3>
+                    <p className="text-white/40 text-[8px] md:text-[10px] uppercase tracking-wider">Pan-African Credit Network</p>
+                  </div>
+                  
+                  <div className="relative w-full aspect-[0.85] bg-[url('https://upload.wikimedia.org/wikipedia/commons/8/86/Africa_%28orthographic_projection%29.svg')] bg-contain bg-center bg-no-repeat">
+                    <div className="absolute top-[40%] left-[45%] w-2 h-2 md:w-3 md:h-3 bg-guava-orange rounded-full animate-pulse" />
+                    <div className="absolute top-[50%] left-[55%] w-1.5 h-1.5 md:w-2 md:h-2 bg-guava-green rounded-full animate-pulse" />
+                    <div className="absolute top-[62.5%] left-[61%] w-1.5 h-1.5 md:w-2 md:h-2 bg-guava-orange rounded-full animate-pulse" />
+                    <div className="absolute top-[30%] left-[35%] w-1.5 h-1.5 md:w-2 md:h-2 bg-guava-green rounded-full animate-pulse" />
+                    <div className="absolute top-[71%] left-[54%] w-2 h-2 md:w-3 md:h-3 bg-guava-orange rounded-full animate-pulse" />
+                  </div>
+
+                  <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-guava-orange/20 to-transparent rounded-full blur-2xl -z-0" />
+                  
+                  <div className="mt-3 md:mt-4 text-center">
+                    <p className="text-white/30 text-[7px] md:text-[9px] uppercase tracking-wider">52 Markets | 1 Platform</p>
+                  </div>
+                </motion.div>
               </div>
             </div>
-            
-            <div className="relative hidden lg:block">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1 }}
-                className="bg-guava-orange p-8 rounded-[48px] shadow-2xl border border-white/5"
-              >
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center text-white/30 text-[10px] uppercase font-bold tracking-widest">
-                    <span>Network Status: Optimal</span>
-                    <span>14:00:34 UTC</span>
-                  </div>
-                  <div className="h-48 grid grid-cols-12 gap-2 items-end">
-                    {[30, 50, 40, 80, 60, 45, 90, 70, 60, 85, 40, 75].map((h, i) => (
-                      <div key={i} className="bg-white/10 rounded-t-lg transition-all hover:bg-guava-orange" style={{ height: `${h}%` }} />
-                    ))}
-                  </div>
-                  <div className="flex gap-4">
-                     <div className="flex-1 p-4 bg-white/5 rounded-2xl border border-white/10">
-                        <p className="text-[10px] text-white/40 uppercase font-black mb-1">Total Volume</p>
-                        <p className="text-2xl font-mono text-white">$4.82B</p>
-                     </div>
-                     <div className="flex-1 p-4 bg-white/5 rounded-2xl border border-white/10">
-                        <p className="text-[10px] text-white/40 uppercase font-black mb-1">Yield APR</p>
-                        <p className="text-2xl font-mono text-guava-green">8.42%</p>
-                     </div>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
 
-          <div id="register" className="grid md:grid-cols-2 gap-8 scroll-mt-24">
-             <motion.div 
-               whileHover={{ y: -10 }}
-               className="p-12 bg-white border-2 border-gray-100 rounded-[48px] hover:border-guava-orange transition-all group"
-             >
-                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-guava-green group-hover:text-white transition-colors">
-                   <Landmark className="w-8 h-8" />
-                </div>
-                <h3 className="text-4xl font-black tracking-tighter mb-4">Business</h3>
-                <p className="text-gray-500 mb-8 font-medium">Verify your institution to deploy capital into high-yield, AI-scored credit opportunities globally.</p>
-                <button 
-                  onClick={() => { 
-                    localStorage.setItem('acx_preferred_role', UserRole.LENDER);
-                    setAuthMode('register'); 
-                    setSelectedRole(UserRole.LENDER); 
-                    setStep(2); 
-                    setShowAuthModal(true); 
-                  }}
-                  className="w-full py-5 bg-guava-green text-white rounded-3xl font-black text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-guava-green/10"
-                >
-                  Register as Business
-                </button>
-             </motion.div>
-
-             <motion.div 
-               whileHover={{ y: -10 }}
-               className="p-12 bg-gray-50 rounded-[48px] hover:bg-white border-2 border-transparent hover:border-guava-orange transition-all group"
-             >
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-8 group-hover:bg-guava-orange group-hover:text-white transition-colors">
-                   <Building className="w-8 h-8" />
-                </div>
-                <h3 className="text-4xl font-black tracking-tighter mb-4">Consumer</h3>
-                <p className="text-gray-500 mb-8 font-medium">Build decentralized credit history and access instant liquidity through our alternative data engine.</p>
-                <button 
-                  onClick={() => { 
-                    localStorage.setItem('acx_preferred_role', UserRole.BORROWER);
-                    setAuthMode('register'); 
-                    setSelectedRole(UserRole.BORROWER); 
-                    setStep(2); 
-                    setShowAuthModal(true); 
-                  }}
-                  className="w-full py-5 bg-guava-orange text-white rounded-3xl font-black text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-guava-orange/20"
-                >
-                  Register as Consumer
-                </button>
-             </motion.div>
-          </div>
-
-          {/* Features Section */}
-          <section id="features" className="mt-32 pt-24 scroll-mt-24">
-            <div className="flex flex-col lg:flex-row gap-20 items-center mb-24">
-              <div className="flex-1">
-                <h2 className="text-5xl font-black tracking-tighter leading-none mb-8">
-                  Engineered for <span className="text-guava-green italic">Institutional</span> Precision.
+            {/* How It Works Section */}
+            <section id="how-it-works" className="scroll-mt-20 mt-12 md:mt-16 mb-20">
+              <div className="text-center max-w-2xl mx-auto mb-8 md:mb-10">
+                <span className="inline-block px-3 py-1 rounded-full bg-orange-50 text-guava-orange text-[9px] md:text-[10px] font-black uppercase tracking-wider mb-3">Simple Process</span>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter mb-3">
+                  Get Started in <span className="text-guava-green">3 Easy Steps</span>
                 </h2>
-                <div className="space-y-6">
-                  <div className="flex gap-6 group">
-                    <div className="w-12 h-12 shrink-0 bg-orange-50 rounded-2xl flex items-center justify-center text-guava-orange group-hover:bg-guava-orange group-hover:text-white transition-all">
-                      <Zap className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-bold tracking-tight mb-2">AI Alternative Scoring</h4>
-                      <p className="text-gray-500 text-sm">Our proprietary engine analyzes alternative data points—mobile usage, utility patterns, and digital behavioral footprint—to generate accurate credit scores for the unbanked.</p>
-                    </div>
+                <p className="text-gray-500 text-sm md:text-base">From registration to funding, we've made the process seamless.</p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                <div className="text-center p-4 md:p-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-guava-orange/10 rounded-full flex items-center justify-center mx-auto mb-3 text-guava-orange">
+                    <UserPlus className="w-6 h-6 md:w-8 md:h-8" />
                   </div>
-                  <div className="flex gap-6 group">
-                    <div className="w-12 h-12 shrink-0 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all">
-                      <Globe className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-bold tracking-tight mb-2">Regional Hub Settlement</h4>
-                      <p className="text-gray-500 text-sm">Deploy and receive capital across African regional economic blocks. Our ledger handles Nigerian Naira, Kenyan Shillings, CFA Francs, and more with institutional-grade efficiency.</p>
-                    </div>
+                  <div className="text-xl md:text-2xl font-black text-guava-orange mb-1">01</div>
+                  <h3 className="text-base md:text-xl font-bold mb-1">Create Your Profile</h3>
+                  <p className="text-gray-500 text-xs md:text-sm">Register as a Business or Consumer. Complete your KYC.</p>
+                </div>
+                <div className="text-center p-4 md:p-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-guava-green/10 rounded-full flex items-center justify-center mx-auto mb-3 text-guava-green">
+                    <Activity className="w-6 h-6 md:w-8 md:h-8" />
                   </div>
-                  <div className="flex gap-6 group">
-                    <div className="w-12 h-12 shrink-0 bg-green-50 rounded-2xl flex items-center justify-center text-guava-green group-hover:bg-guava-green group-hover:text-white transition-all">
-                      <Shield className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-bold tracking-tight mb-2">African Risk Guardrails</h4>
-                      <p className="text-gray-500 text-sm">Real-time monitoring and automated audit trails ensure every transaction on the ACX portal adheres to regional compliance and international safety standards.</p>
-                    </div>
+                  <div className="text-xl md:text-2xl font-black text-guava-orange mb-1">02</div>
+                  <h3 className="text-base md:text-xl font-bold mb-1">Get Credit Scored</h3>
+                  <p className="text-gray-500 text-xs md:text-sm">Our AI analyzes alternative data to generate your credit profile.</p>
+                </div>
+                <div className="text-center p-4 md:p-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-500">
+                    <Wallet className="w-6 h-6 md:w-8 md:h-8" />
                   </div>
+                  <div className="text-xl md:text-2xl font-black text-guava-orange mb-1">03</div>
+                  <h3 className="text-base md:text-xl font-bold mb-1">Access Credit</h3>
+                  <p className="text-gray-500 text-xs md:text-sm">Connect with lenders and access the capital you need.</p>
                 </div>
               </div>
-              <div className="flex-1 w-full grid grid-cols-2 gap-4">
-                 {[
-                   { label: 'Latency', value: '42ms', sub: 'Global Average' },
-                   { label: 'Uptime', value: '99.99%', sub: 'Portal Stability' },
-                   { label: 'Security', value: 'AES-256', sub: 'Military Grade' },
-                   { label: 'Volume', value: '$840M', sub: 'Daily Liquidity' },
-                 ].map((stat, i) => (
-                   <div key={i} className="p-8 bg-gray-50 rounded-[32px] border border-gray-100">
-                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{stat.label}</p>
-                     <p className="text-3xl font-black font-mono text-guava-dark">{stat.value}</p>
-                     <p className="text-[10px] font-bold text-guava-green mt-1">{stat.sub}</p>
-                   </div>
-                 ))}
+            </section>
+
+            {/* Registration Cards */}
+            <div className="grid md:grid-cols-2 gap-6 mt-10 md:mt-12">
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="p-6 md:p-8 lg:p-10 bg-gray-50 rounded-2xl md:rounded-3xl hover:bg-white border-2 border-transparent hover:border-guava-orange transition-all group cursor-pointer"
+                onClick={() => { 
+                  localStorage.setItem('acx_preferred_role', UserRole.BORROWER);
+                  setAuthMode('register'); 
+                  setSelectedRole(UserRole.BORROWER); 
+                  setStep(2); 
+                  setShowAuthModal(true); 
+                }}
+              >
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:bg-guava-orange group-hover:text-white transition-colors">
+                  <Building className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
+                <h3 className="text-xl md:text-2xl lg:text-3xl font-black tracking-tighter mb-2">Consumer Portal</h3>
+                <p className="text-gray-500 text-xs md:text-sm lg:text-base mb-4 md:mb-6 leading-relaxed">Build decentralized credit history and access instant liquidity through our alternative data scoring engine.</p>
+                <div className="flex items-center gap-2 text-guava-orange font-bold text-xs md:text-sm">
+                  Register as Consumer <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="p-6 md:p-8 lg:p-10 bg-white border-2 border-gray-100 rounded-2xl md:rounded-3xl hover:border-guava-orange transition-all group cursor-pointer"
+                onClick={() => { 
+                  localStorage.setItem('acx_preferred_role', UserRole.LENDER);
+                  setAuthMode('register'); 
+                  setSelectedRole(UserRole.LENDER); 
+                  setStep(2); 
+                  setShowAuthModal(true); 
+                }}
+              >
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-50 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 group-hover:bg-guava-green group-hover:text-white transition-colors">
+                  <Landmark className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
+                <h3 className="text-xl md:text-2xl lg:text-3xl font-black tracking-tighter mb-2">Business Portal</h3>
+                <p className="text-gray-500 text-xs md:text-sm lg:text-base mb-4 md:mb-6 leading-relaxed">Deploy capital into AI-scored credit opportunities. Access real-time risk analytics and diversify across African markets.</p>
+                <div className="flex items-center gap-2 text-guava-orange font-bold text-xs md:text-sm">
+                  Register as Business <ArrowRight className="w-3 h-3 md:w-4 md:h-4" />
+                </div>
+              </motion.div>
+
+              
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="mt-4 md:mt-8 pt-10 md:pt-12 px-4 md:px-6 scroll-mt-20 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center max-w-2xl mx-auto mb-8 md:mb-12">
+              <span className="inline-block px-3 py-1 rounded-full bg-orange-50 text-guava-orange text-[9px] md:text-[10px] font-black uppercase tracking-wider mb-3">Platform Capabilities</span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter mb-3">
+                Engineered for <span className="text-guava-green">African</span> Markets
+              </h2>
+              <p className="text-gray-500 text-sm md:text-base">Powering credit access and liquidity across 52 markets with localized intelligence.</p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+              <div className="p-6 md:p-8 rounded-xl md:rounded-2xl border border-gray-100 hover:shadow-xl transition-all group">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-orange-50 rounded-lg md:rounded-xl flex items-center justify-center mb-4 md:mb-5 group-hover:bg-guava-orange group-hover:text-white transition-colors">
+                  <Zap className="w-5 h-5 md:w-6 md:h-6 text-guava-orange group-hover:text-white" />
+                </div>
+                <h4 className="text-lg md:text-xl font-bold mb-2">AI Alternative Scoring</h4>
+                <p className="text-gray-500 text-xs md:text-sm leading-relaxed">Proprietary algorithms analyze mobile usage, utility patterns, and behavioral data to generate accurate credit scores.</p>
+              </div>
+
+              <div className="p-6 md:p-8 rounded-xl md:rounded-2xl border border-gray-100 hover:shadow-xl transition-all group">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-50 rounded-lg md:rounded-xl flex items-center justify-center mb-4 md:mb-5 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <Globe className="w-5 h-5 md:w-6 md:h-6 text-blue-500 group-hover:text-white" />
+                </div>
+                <h4 className="text-lg md:text-xl font-bold mb-2">Regional Settlement Hub</h4>
+                <p className="text-gray-500 text-xs md:text-sm leading-relaxed">Deploy and receive capital across African economic blocks. Support for NGN, KES, XAF, GHS, and more.</p>
+              </div>
+
+              <div className="p-6 md:p-8 rounded-xl md:rounded-2xl border border-gray-100 hover:shadow-xl transition-all group">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-green-50 rounded-lg md:rounded-xl flex items-center justify-center mb-4 md:mb-5 group-hover:bg-guava-green group-hover:text-white transition-colors">
+                  <Shield className="w-5 h-5 md:w-6 md:h-6 text-guava-green group-hover:text-white" />
+                </div>
+                <h4 className="text-lg md:text-xl font-bold mb-2">Risk & Compliance</h4>
+                <p className="text-gray-500 text-xs md:text-sm leading-relaxed">Real-time monitoring and automated audit trails ensure every transaction adheres to regional standards.</p>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* Network Section */}
-          <section id="network" className="mt-32 pt-24 pb-32 scroll-mt-24">
-            <div className="p-12 md:p-20 bg-guava-dark rounded-[64px] text-white relative overflow-hidden">
-               <div className="relative z-10 grid lg:grid-cols-2 gap-20 items-center">
-                  <div>
-                    <h2 className="text-6xl font-black tracking-tighter leading-none mb-8">
-                      Pan-African <br /> <span className="text-guava-orange italic">Intelligence</span> Network.
-                    </h2>
-                    <p className="text-lg text-white/60 mb-12">ACX connects 124 portal nodes across the continent, facilitating instant credit resonance in growth markets where traditional infrastructure fails.</p>
-                    <div className="grid grid-cols-3 gap-8">
-                       <div>
-                          <p className="text-4xl font-black">124</p>
-                          <p className="text-[10px] uppercase font-bold tracking-widest text-white/40">Active Nodes</p>
-                       </div>
-                       <div>
-                          <p className="text-4xl font-black">52</p>
-                          <p className="text-[10px] uppercase font-bold tracking-widest text-white/40">Markets</p>
-                       </div>
-                       <div>
-                          <p className="text-4xl font-black">1.2M</p>
-                          <p className="text-[10px] uppercase font-bold tracking-widest text-white/40">Profiles</p>
-                       </div>
-                    </div>
+        {/* Footer */}
+        <footer className="bg-black text-white mt-10 md:mt-12">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-6 md:mb-8">
+              <div className="col-span-2 md:col-span-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 bg-guava-orange rounded-full flex items-center justify-center">
+                    <div className="w-2 h-2 bg-guava-green rounded-full" />
                   </div>
-                  <div className="relative">
-                    <div className="aspect-square bg-white/5 rounded-full flex items-center justify-center p-8 border border-white/10 animate-pulse transition-all">
-                       <div className="w-full h-full bg-guava-orange/20 rounded-full flex items-center justify-center">
-                          <Globe className="w-32 h-32 text-guava-orange" />
-                       </div>
-                    </div>
-                    {/* Animated Dots for Nodes */}
-                    {[...Array(6)].map((_, i) => (
-                      <motion.div 
-                        key={i}
-                        animate={{ 
-                          scale: [1, 1.2, 1],
-                          opacity: [0.3, 0.7, 0.3]
-                        }}
-                        transition={{ 
-                          duration: 3, 
-                          repeat: Infinity, 
-                          delay: i * 0.5 
-                        }}
-                        className="absolute w-4 h-4 bg-guava-orange rounded-full shadow-[0_0_20px_rgba(244,114,22,0.5)]"
-                        style={{ 
-                          top: `${Math.random() * 80 + 10}%`, 
-                          left: `${Math.random() * 80 + 10}%` 
-                        }}
-                      />
-                    ))}
-                  </div>
-               </div>
-               <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
-                 <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-br from-guava-orange to-transparent rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
-               </div>
+                  <span className="text-lg md:text-xl font-black tracking-tighter">ACX Africa</span>
+                </div>
+                <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-3">
+                  The unified credit and liquidity platform for the African continent.
+                </p>
+                <div className="flex items-center gap-3">
+                  <a href="#" className="text-gray-400 hover:text-guava-orange transition-colors cursor-pointer">
+                    <Twitter className="w-4 h-4" />
+                  </a>
+                  <a href="#" className="text-gray-400 hover:text-guava-orange transition-colors cursor-pointer">
+                    <Linkedin className="w-4 h-4" />
+                  </a>
+                  <a href="#" className="text-gray-400 hover:text-guava-orange transition-colors cursor-pointer">
+                    <Mail className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Platform</h4>
+                <ul className="space-y-1.5">
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Credit Scoring</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Liquidity Pools</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">For Lenders</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">For Borrowers</a></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Resources</h4>
+                <ul className="space-y-1.5">
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Documentation</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">API Status</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Research</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Support</a></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Legal</h4>
+                <ul className="space-y-1.5">
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Privacy</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Terms</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Regulatory</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Cookies</a></li>
+                </ul>
+              </div>
             </div>
-          </section>
-        </div>
-      </section>
+
+            <div className="pt-4 border-t border-white/30 ">
+              <p className="text-gray-500 text-[11px] md:text-xs text-center">
+                &copy; {currentYear} African Credit Exchange. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

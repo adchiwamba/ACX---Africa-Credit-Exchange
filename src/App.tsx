@@ -12,7 +12,6 @@ import Sidebar from './components/Sidebar';
 import SupportWidget from './components/SupportWidget';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
-
 import Marketplace from './pages/Marketplace';
 import LoanApplication from './pages/LoanApplication';
 import Portfolio from './pages/Portfolio';
@@ -27,7 +26,7 @@ import MarketMaker from './pages/MarketMaker';
 import Settings from './pages/Settings';
 import MerchantLedger from './pages/MerchantLedger';
 import DepositModal from './components/DepositModal';
-
+import HowItWorks from './pages/HowItWorks';
 import { FirebaseProvider, useFirebase } from './components/FirebaseProvider';
 
 function AppContent() {
@@ -43,8 +42,8 @@ function AppContent() {
     });
     logout();
   };
+
   const handleLogin = async (newUser?: UserProfile) => {
-    // Only set if not already set by UI choices in LandingPage
     if (newUser?.role && !localStorage.getItem('acx_preferred_role')) {
       localStorage.setItem('acx_preferred_role', newUser.role);
     }
@@ -85,61 +84,106 @@ function AppContent() {
     );
   }
 
-  if (!user) {
-    return <LandingPage onLogin={handleLogin} />;
-  }
-
+  // Wrap everything in Router
   return (
     <Router>
-      <div className="flex flex-col h-screen bg-[#F8F9FA] dark:bg-[#0F172A] font-sans text-[#1A1A1A] dark:text-white/90 transition-colors">
-        <Navbar 
+      <Routes>
+        {/* Public routes - no login required */}
+        <Route path="/how-it-works" element={<HowItWorks />} />
+        
+        {/* Protected routes - require login */}
+        <Route 
+          path="/*" 
+          element={
+            !user ? (
+              <LandingPage onLogin={handleLogin} />
+            ) : (
+              <AuthenticatedApp 
+                user={user}
+                onLogout={handleLogout}
+                onSwitchRole={switchRole}
+                onDeposit={() => setIsDepositModalOpen(true)}
+                isDepositModalOpen={isDepositModalOpen}
+                onDepositClose={() => setIsDepositModalOpen(false)}
+                onUpdateBalance={updateBalance}
+              />
+            )
+          } 
+        />
+      </Routes>
+    </Router>
+  );
+}
+
+// Separate component for authenticated app to avoid conditional hook issues
+function AuthenticatedApp({ 
+  user, 
+  onLogout, 
+  onSwitchRole, 
+  onDeposit,
+  isDepositModalOpen,
+  onDepositClose,
+  onUpdateBalance
+}: { 
+  user: UserProfile; 
+  onLogout: () => void;
+  onSwitchRole: (role: UserRole) => void;
+  onDeposit: () => void;
+  isDepositModalOpen: boolean;
+  onDepositClose: () => void;
+  onUpdateBalance: (amount: number) => void;
+}) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  return (
+    <div className="flex flex-col h-screen bg-[#F8F9FA] dark:bg-[#0F172A] font-sans text-[#1A1A1A] dark:text-white/90 transition-colors">
+      <Navbar 
+        user={user} 
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+        onLogout={onLogout}
+        onSwitchRole={onSwitchRole}
+      />
+      
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar 
+          isOpen={isSidebarOpen} 
           user={user} 
-          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-          onLogout={handleLogout}
-          onSwitchRole={switchRole}
+          onClose={() => setIsSidebarOpen(false)} 
+          onDeposit={onDeposit}
         />
         
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            user={user} 
-            onClose={() => setIsSidebarOpen(false)} 
-            onDeposit={() => setIsDepositModalOpen(true)}
-          />
-          
-          <main className={cn(
-            "flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 lg:p-10 transition-all duration-300 bg-white dark:bg-[#0F172A]",
-            isSidebarOpen ? "lg:ml-0" : "lg:ml-0"
-          )}>
-            <div className="max-w-[1600px] mx-auto w-full">
-              <Routes>
-                <Route path="/" element={<Dashboard key={user.uid} user={user} />} />
-                <Route path="/marketplace" element={<Marketplace user={user} />} />
-                <Route path="/apply" element={<LoanApplication user={user} />} />
-                <Route path="/portfolio" element={<Portfolio user={user} onDeposit={() => setIsDepositModalOpen(true)} />} />
-                <Route path="/profile" element={<BorrowerProfile key={user.uid} user={user} />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/lender-profile" element={<LenderProfile key={user.uid} user={user} />} />
-                <Route path="/repayments" element={<Repayments user={user} />} />
-                <Route path="/merchant-ledger" element={<MerchantLedger user={user} />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/market-maker" element={<MarketMaker user={user} />} />
-                <Route path="/blacklist" element={<BlacklistManager user={user} />} />
-                <Route path="/settings" element={<Settings user={user} />} />
-                <Route path="/admin" element={user.role === UserRole.ADMIN ? <AdminPanel /> : <Navigate to="/" />} />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            </div>
-          </main>
-          <SupportWidget />
-          <DepositModal 
-            isOpen={isDepositModalOpen} 
-            onClose={() => setIsDepositModalOpen(false)} 
-            onDeposit={updateBalance}
-          />
-        </div>
+        <main className={cn(
+          "flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 lg:p-10 transition-all duration-300 bg-white dark:bg-[#0F172A]",
+          isSidebarOpen ? "lg:ml-0" : "lg:ml-0"
+        )}>
+          <div className="max-w-[1600px] mx-auto w-full">
+            <Routes>
+              <Route path="/" element={<Dashboard key={user.uid} user={user} />} />
+              <Route path="/dashboard" element={<Dashboard key={user.uid} user={user} />} />
+              <Route path="/marketplace" element={<Marketplace user={user} />} />
+              <Route path="/apply" element={<LoanApplication user={user} />} />
+              <Route path="/portfolio" element={<Portfolio user={user} onDeposit={onDeposit} />} />
+              <Route path="/profile" element={<BorrowerProfile key={user.uid} user={user} />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/lender-profile" element={<LenderProfile key={user.uid} user={user} />} />
+              <Route path="/repayments" element={<Repayments user={user} />} />
+              <Route path="/merchant-ledger" element={<MerchantLedger user={user} />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/market-maker" element={<MarketMaker user={user} />} />
+              <Route path="/blacklist" element={<BlacklistManager user={user} />} />
+              <Route path="/settings" element={<Settings user={user} />} />
+              <Route path="/admin" element={user.role === UserRole.ADMIN ? <AdminPanel /> : <Navigate to="/dashboard" />} />
+            </Routes>
+          </div>
+        </main>
+        <SupportWidget />
+        <DepositModal 
+          isOpen={isDepositModalOpen} 
+          onClose={onDepositClose} 
+          onDeposit={onUpdateBalance}
+        />
       </div>
-    </Router>
+    </div>
   );
 }
 
@@ -150,6 +194,3 @@ export default function App() {
     </FirebaseProvider>
   );
 }
-
-
-// App.tsx
