@@ -78,27 +78,20 @@ export interface UserProfile {
   currency: string;
   preferredCurrencies: string[];
   balance: number;
-  country?: string;
-  phoneCode?: string;
-  languages?: string[];
-  photoURL?: string;
+  country: string;
+  phoneCode: string;
+  languages: string[];
+  photoURL: string;
   organizationDetails?: {
     companySize: string;
     contactPerson: string;
     industry: string;
     taxId?: string;
-  };
-  borrowerDetails?: {
-    profile: BorrowerProfileData;
-    uploads: Record<string, boolean>;
-    verificationResults?: Record<string, VerificationResult>;
-    scoreResult: CreditScoreResult | null;
-    lastUpdated?: string;
+    registrationNumber?: string;
+    yearEstablished?: string;
+    annualRevenue?: string;
   };
   is2FAEnabled: boolean;
-  inventory?: StockItem[];
-  isBlacklisted?: boolean;
-  delinquencyStage?: 'NONE' | 'INITIAL' | 'WRITTEN' | 'FINAL' | 'BLACKLISTED';
 }
 
 export interface CreditScoreResult {

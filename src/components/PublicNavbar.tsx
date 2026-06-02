@@ -6,6 +6,8 @@ import { UserRole, UserProfile } from '../types';
 import { COUNTRIES, CURRENCIES, LANGUAGES } from '../constants/countries';
 import { MOCK_USERS } from '../lib/store';
 import { Link } from 'react-router-dom';
+import ACX from '../img/ACX logo.png';
+import ACXText from '../img/ACX logoText.png';
 
 interface PublicNavbarProps {
   onLogin: (user: UserProfile) => void;
@@ -676,10 +678,8 @@ export default function PublicNavbar({ onLogin }: PublicNavbarProps) {
           to={'/'}
           className="text-xl md:text-2xl font-black tracking-tighter italic flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
         >
-          <div className="w-7 h-7 bg-guava-orange rounded-full flex items-center justify-center">
-            <div className="w-2.5 h-2.5 bg-guava-green rounded-full translate-x-1 -translate-y-1" />
-          </div>
-          ACX
+                  <img src={ACX} alt="ACX Logo" className="h-12" />
+
         </Link>
         <div className="flex items-center gap-4 md:gap-8">
           <Link 
@@ -694,12 +694,13 @@ export default function PublicNavbar({ onLogin }: PublicNavbarProps) {
           >
             Features
           </button> */}
-          <button 
-            onClick={openLoginModal}
+          <Link 
+          to={'/login'}
+            // onClick={openLoginModal}
             className="text-xs md:text-sm font-bold opacity-40 hover:opacity-100 transition-opacity cursor-pointer"
           >
             Login
-          </button>
+          </Link>
           <button 
             onClick={openRegisterModal}
             className="text-xs md:text-sm font-black uppercase tracking-widest hover:text-guava-orange transition-colors cursor-pointer"

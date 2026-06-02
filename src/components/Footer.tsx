@@ -1,5 +1,7 @@
 // components/Footer.tsx
 import { Twitter, Linkedin, Mail } from 'lucide-react';
+import ACXText from '../img/ACX logoText.png';
+import ACX from '../img/ACX logo.png';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,13 +11,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-6 md:mb-8">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 bg-guava-orange rounded-full flex items-center justify-center">
-                <div className="w-2 h-2 bg-guava-green rounded-full" />
-              </div>
-              <span className="text-lg md:text-xl font-black tracking-tighter">ACX Africa</span>
-            </div>
-            <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-3">
+        <img src={ACXText} alt="ACX Logo" className="h-22 " />
+            
+
+            <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-3 mt-4">
               The unified credit and liquidity platform for the African continent.
             </p>
             <div className="flex items-center gap-3">

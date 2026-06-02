@@ -28,6 +28,8 @@ import MerchantLedger from './pages/MerchantLedger';
 import DepositModal from './components/DepositModal';
 import HowItWorks from './pages/HowItWorks';
 import { FirebaseProvider, useFirebase } from './components/FirebaseProvider';
+import LoginPage from './pages/Login';
+import SignupPage from './pages/Signup';
 
 function AppContent() {
   const { profile: user, loading, login, logout, updateProfile } = useFirebase();
@@ -90,6 +92,8 @@ function AppContent() {
       <Routes>
         {/* Public routes - no login required */}
         <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path='/login' element={<LoginPage/>} />
+        <Route path='/signup' element={<SignupPage/>} />
         
         {/* Protected routes - require login */}
         <Route 
@@ -173,6 +177,8 @@ function AuthenticatedApp({
               <Route path="/blacklist" element={<BlacklistManager user={user} />} />
               <Route path="/settings" element={<Settings user={user} />} />
               <Route path="/admin" element={user.role === UserRole.ADMIN ? <AdminPanel /> : <Navigate to="/dashboard" />} />
+
+              
             </Routes>
           </div>
         </main>

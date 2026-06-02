@@ -9,7 +9,10 @@ import { UserRole, UserProfile } from '../types';
 import { COUNTRIES, CURRENCIES, LANGUAGES } from '../constants/countries';
 import { MOCK_USERS } from '../lib/store';
 import Logo from '../img/logo.png';
+import ACX from '../img/ACX logo.png';
+import ACXText from '../img/ACX logoText.png';
 import { Link } from 'react-router-dom';
+import Footer from '../components/Footer';
 
 
 // Placeholder for Guava logo - replace with actual image import
@@ -696,15 +699,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
 
       {/* Fixed Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 h-14 flex items-center justify-between px-4 md:px-8 max-w-7xl mx-auto">
-        <div 
-          onClick={handleLogoClick}
-          className="text-xl md:text-2xl font-black tracking-tighter italic flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform"
-        >
-          <div className="w-7 h-7 bg-guava-orange rounded-full flex items-center justify-center">
-            <div className="w-2.5 h-2.5 bg-guava-green rounded-full translate-x-1 -translate-y-1" />
-          </div>
-          ACX
-        </div>
+        <img src={ACXText} alt="ACX Logo" className="h-13" />
         <div className="flex items-center gap-4 md:gap-8">
           <Link to={'/how-it-works'} className="text-xs md:text-sm font-bold opacity-40 hover:opacity-100 transition-opacity cursor-pointer">
             How It Works
@@ -958,71 +953,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="bg-black text-white mt-10 md:mt-12">
-          <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-6 md:mb-8">
-              <div className="col-span-2 md:col-span-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-guava-orange rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-guava-green rounded-full" />
-                  </div>
-                  <span className="text-lg md:text-xl font-black tracking-tighter">ACX Africa</span>
-                </div>
-                <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-3">
-                  The unified credit and liquidity platform for the African continent.
-                </p>
-                <div className="flex items-center gap-3">
-                  <a href="#" className="text-gray-400 hover:text-guava-orange transition-colors cursor-pointer">
-                    <Twitter className="w-4 h-4" />
-                  </a>
-                  <a href="#" className="text-gray-400 hover:text-guava-orange transition-colors cursor-pointer">
-                    <Linkedin className="w-4 h-4" />
-                  </a>
-                  <a href="#" className="text-gray-400 hover:text-guava-orange transition-colors cursor-pointer">
-                    <Mail className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Platform</h4>
-                <ul className="space-y-1.5">
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Credit Scoring</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Liquidity Pools</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">For Lenders</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">For Borrowers</a></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Resources</h4>
-                <ul className="space-y-1.5">
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Documentation</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">API Status</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Research</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Support</a></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Legal</h4>
-                <ul className="space-y-1.5">
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Privacy</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Terms</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Regulatory</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Cookies</a></li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-white/30 ">
-              <p className="text-gray-500 text-[11px] md:text-xs text-center">
-                &copy; {currentYear} African Credit Exchange. All rights reserved.
-              </p>
-            </div>
-          </div>
-        </footer>
+        <Footer/>
       </div>
     </div>
   );

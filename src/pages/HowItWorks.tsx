@@ -17,13 +17,13 @@ export default function HowItWorks() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const currentYear = new Date().getFullYear();
 
-  // Pricing plans for businesses
+  // Business/Lender Pricing Plans
   const businessPricingPlans = [
     {
-      name: 'Startup',
+      name: 'Start-Up',
       price: billingCycle === 'monthly' ? '$99' : '$990',
-      yearlyPrice: '$990',
-      monthlyPrice: '$99',
+      monthlyPrice: 99,
+      yearlyPrice: 990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $198/year' : null,
       features: [
@@ -31,18 +31,18 @@ export default function HowItWorks() {
         'Up to 50 active loans at once',
         'Basic credit scoring access',
         'Standard blacklist queries (50/month)',
-        'Email support (48hr response)',
-        'Basic reporting dashboard',
-        'Single user account'
+        'View candidate marketplace',
+        'Basic applicant tracking',
+        'Email support'
       ],
       recommended: false,
       icon: Building
     },
     {
-      name: 'Professional',
+      name: 'Medium Sized',
       price: billingCycle === 'monthly' ? '$299' : '$2,990',
-      yearlyPrice: '$2,990',
-      monthlyPrice: '$299',
+      monthlyPrice: 299,
+      yearlyPrice: 2990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $598/year' : null,
       features: [
@@ -50,12 +50,9 @@ export default function HowItWorks() {
         'Up to 500 active loans at once',
         'Advanced AI credit scoring',
         'Full blacklist access with real-time sync',
-        'Priority support & SLA (24hr response)',
-        'Bulk borrower verification',
-        'Custom risk analytics dashboard',
-        'Automated loan approval workflows',
-        'Up to 5 user accounts',
-        'Export reports (CSV/PDF)'
+        'Enhanced candidate search',
+        'Recruitment progress dashboard',
+        'Priority support'
       ],
       recommended: true,
       icon: Briefcase
@@ -63,8 +60,8 @@ export default function HowItWorks() {
     {
       name: 'Corporate',
       price: billingCycle === 'monthly' ? '$699' : '$6,990',
-      yearlyPrice: '$6,990',
-      monthlyPrice: '$699',
+      monthlyPrice: 699,
+      yearlyPrice: 6990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $1,398/year' : null,
       features: [
@@ -72,14 +69,9 @@ export default function HowItWorks() {
         'Up to 2,000 active loans at once',
         'Enterprise AI credit scoring models',
         'Unlimited blacklist queries',
-        '24/7 priority support',
-        'Bulk borrower verification with auto-approval',
-        'Advanced risk analytics & reporting dashboards',
-        'Unlimited user accounts with role-based access',
-        'Automated loan approval & disbursement workflows',
-        'Multi-currency settlement support',
-        'Regulatory compliance reporting tools',
-        'White-labeled reports'
+        'Advanced candidate discovery',
+        'Executive recruitment reports',
+        'Guided onboarding'
       ],
       recommended: false,
       icon: Landmark
@@ -87,36 +79,31 @@ export default function HowItWorks() {
     {
       name: 'Enterprise',
       price: billingCycle === 'monthly' ? '$1,499' : '$14,990',
-      yearlyPrice: '$14,990',
-      monthlyPrice: '$1,499',
+      monthlyPrice: 1499,
+      yearlyPrice: 14990,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $2,998/year' : null,
       features: [
         'Unlimited disbursement capacity',
         'Unlimited active loans',
         'Custom AI credit models & algorithms',
-        'Unlimited blacklist queries',
-        '24/7 dedicated support team',
-        'Real-time cross-border settlement',
-        'Multi-country license support',
-        'Custom compliance & regulatory tools',
-        'Private blacklist integration',
-        'Dedicated infrastructure',
-        'SLA guarantees with financial penalties',
-        'Full white-label customization'
+        'Unlimited blacklist queries + private blacklist',
+        'Advanced marketplace access',
+        'Exports and executive analytics',
+        'Dedicated support'
       ],
       recommended: false,
       icon: Globe
     }
   ];
 
-  // Pricing plans for borrowers - all include real-time credit
-  const borrowerPricingPlans = [
+  // Consumer/Borrower Pricing Plans
+  const consumerPricingPlans = [
     {
       name: 'Basic',
       price: billingCycle === 'monthly' ? '$5' : '$50',
-      yearlyPrice: '$50',
-      monthlyPrice: '$5',
+      monthlyPrice: 5,
+      yearlyPrice: 50,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $10/year' : null,
       features: [
@@ -134,8 +121,8 @@ export default function HowItWorks() {
     {
       name: 'Plus',
       price: billingCycle === 'monthly' ? '$12' : '$120',
-      yearlyPrice: '$120',
-      monthlyPrice: '$12',
+      monthlyPrice: 12,
+      yearlyPrice: 120,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $24/year' : null,
       features: [
@@ -155,8 +142,8 @@ export default function HowItWorks() {
     {
       name: 'Premium',
       price: billingCycle === 'monthly' ? '$25' : '$250',
-      yearlyPrice: '$250',
-      monthlyPrice: '$25',
+      monthlyPrice: 25,
+      yearlyPrice: 250,
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $50/year' : null,
       features: [
@@ -182,50 +169,38 @@ export default function HowItWorks() {
     navigate('/');
   };
 
-  const handleDemoAccess = () => {
-    const demoUser = {
-      uid: 'demo_' + Date.now(),
-      email: 'demo@acx.africa',
-      displayName: 'Demo User',
-      role: UserRole.BORROWER,
-      creditScore: 720,
-      kycStatus: 'VERIFIED',
-      currency: 'USD',
-      preferredCurrencies: ['USD', 'KES'],
-      balance: 5000,
-      country: 'Kenya',
-      phoneCode: '+254',
-      languages: ['English'],
-      photoURL: '',
-      is2FAEnabled: false
-    };
-    localStorage.setItem('acx_demo_user', JSON.stringify(demoUser));
-    window.location.href = '/';
-  };
-
   return (
     <div className="min-h-screen bg-white text-black">
       <PublicNavbar />
 
-      {/* Add padding-top for fixed navbar */}
       <div className="pt-14">
-        {/* Hero Section */}
-        <section className="bg-gradient-to-br from-guava-dark to-black text-white py-16 md:py-24 px-4 md:px-6">
-          <div className="max-w-6xl mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-4">
-                How <span className="text-guava-orange">ACX</span> Works
-              </h1>
-              <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto">
-                A dual-sided platform connecting institutional capital with African borrowers through AI-powered credit scoring
-              </p>
-            </motion.div>
-          </div>
-        </section>
+        {/* Hero Section with Background Image */}
+        <div className="relative">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ 
+              backgroundImage: 'url("https://images.unsplash.com/photo-1591696205602-2f950c417cb9?q=80&w=1170&auto=format")',
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/70 to-guava-dark/80" />
+          
+          <section className="relative z-10 py-16 md:py-24 px-4 md:px-6">
+            <div className="max-w-6xl mx-auto text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-4 text-white">
+                  How <span className="text-guava-orange">ACX</span> Works
+                </h1>
+                <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
+                  A dual-sided platform connecting institutional capital with African borrowers through AI-powered credit scoring
+                </p>
+              </motion.div>
+            </div>
+          </section>
+        </div>
 
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 bg-white sticky top-14 z-30">
@@ -322,7 +297,7 @@ export default function HowItWorks() {
                 </div>
               </div>
 
-              {/* Business Pricing Plans with Billing Switcher */}
+              {/* Business Pricing Plans */}
               <div className="mb-16">
                 <div className="text-center mb-10">
                   <h3 className="text-2xl md:text-3xl font-black tracking-tighter mb-3">
@@ -381,7 +356,7 @@ export default function HowItWorks() {
                       <div className="mb-4">
                         <span className="text-3xl font-black">{plan.price}</span>
                         <span className="text-gray-400 text-sm">/{plan.period}</span>
-                        {plan.savings && billingCycle === 'yearly' && (
+                        {plan.savings && (
                           <p className="text-[10px] text-guava-green font-bold mt-1">{plan.savings}</p>
                         )}
                       </div>
@@ -678,7 +653,7 @@ export default function HowItWorks() {
                 </div>
               </div>
 
-              {/* Borrower Pricing Plans */}
+              {/* Consumer Pricing Plans */}
               <div className="mb-16">
                 <div className="text-center mb-10">
                   <h3 className="text-2xl md:text-3xl font-black tracking-tighter mb-3">
@@ -711,7 +686,7 @@ export default function HowItWorks() {
                   </div>
                 </div>
                 <div className="grid md:grid-cols-3 gap-6">
-                  {borrowerPricingPlans.map((plan) => (
+                  {consumerPricingPlans.map((plan) => (
                     <motion.div
                       key={plan.name}
                       whileHover={{ y: -8 }}
@@ -737,7 +712,7 @@ export default function HowItWorks() {
                       <div className="mb-4">
                         <span className="text-3xl font-black">{plan.price}</span>
                         <span className="text-gray-400 text-sm">/{plan.period}</span>
-                        {plan.savings && billingCycle === 'yearly' && (
+                        {plan.savings && (
                           <p className="text-[10px] text-guava-green font-bold mt-1">{plan.savings}</p>
                         )}
                       </div>
