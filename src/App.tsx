@@ -4,7 +4,7 @@
  */
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserProfile, UserRole } from './types';
 import { cn } from './lib/utils';
 import Navbar from './components/Navbar';
@@ -28,17 +28,70 @@ import MerchantLedger from './pages/MerchantLedger';
 import DepositModal from './components/DepositModal';
 import HowItWorks from './pages/HowItWorks';
 import { FirebaseProvider, useFirebase } from './components/FirebaseProvider';
-import LoginPage from './pages/Login';
-import SignupPage from './pages/Signup';
+import { useNotify } from './lib/NotificationContext';
 
 function AppContent() {
-  const { profile: user, loading, login, logout, updateProfile } = useFirebase();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { profile: user, loading, login, sandboxLogin, logout, updateProfile } = useFirebase();
+  const { notify } = useNotify();
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (user?.role && !localStorage.getItem('acx_original_role')) {
+      localStorage.setItem('acx_original_role', user.role);
+    }
+  }, [user]);
+
+  // Inactivity timer (15 minutes)
+  const userUid = user?.uid;
+  useEffect(() => {
+    if (!userUid) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const handleInactivityLogout = () => {
+      // Clear localStorage logic
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('acx_') && key !== 'acx_custom_users') {
+          localStorage.removeItem(key);
+        }
+      });
+      logout();
+      notify('warning', 'Session Expired', 'You have been logged out due to 15 minutes of inactivity.');
+    };
+
+    const resetTimer = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        handleInactivityLogout();
+      }, 15 * 60 * 1000); // 15 minutes
+    };
+
+    // Set initial timer
+    resetTimer();
+
+    // Event listeners to detect user activity
+    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
+    const handler = () => resetTimer();
+
+    events.forEach(event => {
+      window.addEventListener(event, handler);
+    });
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      events.forEach(event => {
+        window.removeEventListener(event, handler);
+      });
+    };
+  }, [userUid, logout, notify]);
 
   const handleLogout = () => {
     Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('acx_')) {
+      if (key.startsWith('acx_') && key !== 'acx_custom_users') {
         localStorage.removeItem(key);
       }
     });
@@ -61,14 +114,12 @@ function AppContent() {
         photoURL: newUser.photoURL,
         organizationDetails: newUser.organizationDetails
       }));
+      if (sandboxLogin) {
+        await sandboxLogin(newUser);
+        return;
+      }
     }
     await login();
-  };
-
-  const switchRole = async (role: UserRole) => {
-    if (user) {
-      await updateProfile({ role });
-    }
   };
 
   const updateBalance = async (amount: number) => {
@@ -91,9 +142,7 @@ function AppContent() {
     <Router>
       <Routes>
         {/* Public routes - no login required */}
-        <Route path="/how-it-works" element={<HowItWorks />} />
-        <Route path='/login' element={<LoginPage/>} />
-        <Route path='/signup' element={<SignupPage/>} />
+        <Route path="/how-it-works" element={<HowItWorks user={user} onLogin={handleLogin} />} />
         
         {/* Protected routes - require login */}
         <Route 
@@ -105,7 +154,6 @@ function AppContent() {
               <AuthenticatedApp 
                 user={user}
                 onLogout={handleLogout}
-                onSwitchRole={switchRole}
                 onDeposit={() => setIsDepositModalOpen(true)}
                 isDepositModalOpen={isDepositModalOpen}
                 onDepositClose={() => setIsDepositModalOpen(false)}
@@ -123,7 +171,6 @@ function AppContent() {
 function AuthenticatedApp({ 
   user, 
   onLogout, 
-  onSwitchRole, 
   onDeposit,
   isDepositModalOpen,
   onDepositClose,
@@ -131,7 +178,6 @@ function AuthenticatedApp({
 }: { 
   user: UserProfile; 
   onLogout: () => void;
-  onSwitchRole: (role: UserRole) => void;
   onDeposit: () => void;
   isDepositModalOpen: boolean;
   onDepositClose: () => void;
@@ -140,12 +186,11 @@ function AuthenticatedApp({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8F9FA] dark:bg-[#0F172A] font-sans text-[#1A1A1A] dark:text-white/90 transition-colors">
+    <div className="flex flex-col h-screen bg-white dark:bg-[#0F172A] font-sans text-black dark:text-white transition-colors">
       <Navbar 
         user={user} 
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
         onLogout={onLogout}
-        onSwitchRole={onSwitchRole}
       />
       
       <div className="flex flex-1 overflow-hidden">
@@ -177,8 +222,6 @@ function AuthenticatedApp({
               <Route path="/blacklist" element={<BlacklistManager user={user} />} />
               <Route path="/settings" element={<Settings user={user} />} />
               <Route path="/admin" element={user.role === UserRole.ADMIN ? <AdminPanel /> : <Navigate to="/dashboard" />} />
-
-              
             </Routes>
           </div>
         </main>

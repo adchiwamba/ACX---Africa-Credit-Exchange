@@ -56,7 +56,7 @@ export default function Settings({ user }: SettingsProps) {
               <div className="w-2 h-2 bg-guava-orange rounded-full animate-pulse" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 dark:text-gray-500">ACX Core Configuration</span>
            </div>
-           <h2 className="text-5xl font-black tracking-tighter italic text-guava-dark dark:text-white">System Config</h2>
+           <h2 className="text-5xl font-black tracking-tighter text-guava-dark dark:text-white">System Config</h2>
            <p className="text-gray-400 dark:text-gray-500 text-sm font-medium mt-2">Personalize your node preferences and portal interaction depth.</p>
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function Settings({ user }: SettingsProps) {
                 {/* Theme Switcher Section */}
                 <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
                    <div className="p-8 border-b border-gray-50 dark:border-white/5 bg-gray-50/50 dark:bg-white/5">
-                      <h3 className="text-xl font-black text-guava-dark dark:text-white italic">Interface Aesthetics</h3>
+                      <h3 className="text-xl font-black text-guava-dark dark:text-white">Interface Aesthetics</h3>
                       <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 dark:text-gray-500 mt-1">Configure your terminal visual portal</p>
                    </div>
                    <div className="p-10 space-y-8">
@@ -130,7 +130,7 @@ export default function Settings({ user }: SettingsProps) {
                            <Sun className="w-7 h-7" />
                          </div>
                          <div>
-                           <p className={cn("text-lg font-black italic", theme === 'light' ? "text-guava-dark" : "text-gray-400")}>Portal Light</p>
+                           <p className={cn("text-lg font-black", theme === 'light' ? "text-guava-dark" : "text-gray-400")}>Portal Light</p>
                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">High visibility mode</p>
                          </div>
                        </button>
@@ -151,7 +151,7 @@ export default function Settings({ user }: SettingsProps) {
                            <Moon className="w-7 h-7" />
                          </div>
                          <div>
-                           <p className={cn("text-lg font-black italic", theme === 'dark' ? "text-white" : "text-gray-400")}>Portal Dark</p>
+                           <p className={cn("text-lg font-black", theme === 'dark' ? "text-white" : "text-gray-400")}>Portal Dark</p>
                            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Eye-strain reduction</p>
                          </div>
                        </button>
@@ -161,7 +161,7 @@ export default function Settings({ user }: SettingsProps) {
 
                 <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
                    <div className="p-8 border-b border-gray-50 dark:border-white/5 bg-gray-50/50 dark:bg-white/5">
-                      <h3 className="text-xl font-black text-guava-dark dark:text-white italic">Portal Identity</h3>
+                      <h3 className="text-xl font-black text-guava-dark dark:text-white">Portal Identity</h3>
                       <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 dark:text-gray-500 mt-1">Managed via decentralized ID portal C-42</p>
                    </div>
                    <div className="p-10 space-y-10">
@@ -192,7 +192,7 @@ export default function Settings({ user }: SettingsProps) {
            {activeTab === 'notifications' && (
              <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
                 <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden p-10">
-                   <h3 className="text-xl font-black text-guava-dark dark:text-white italic mb-8">Signal Configuration</h3>
+                   <h3 className="text-xl font-black text-guava-dark dark:text-white mb-8">Signal Configuration</h3>
                    <div className="space-y-6">
                       {[
                         { label: 'Network Alerts', desc: 'Critical portal status and risk updates', status: 'Active' },
@@ -230,7 +230,7 @@ export default function Settings({ user }: SettingsProps) {
              <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
                 <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
                    <div className="p-8 border-b border-gray-50 dark:border-white/5 bg-gray-50/50 dark:bg-white/5 flex justify-between items-center">
-                      <h3 className="text-xl font-black text-guava-dark dark:text-white italic">Portal Security</h3>
+                      <h3 className="text-xl font-black text-guava-dark dark:text-white">Portal Security</h3>
                       <span className="text-[10px] font-black uppercase tracking-widest text-guava-green flex items-center gap-2">
                          <Zap className="w-3 h-3 animate-pulse" />
                          Active Shield
@@ -282,7 +282,7 @@ export default function Settings({ user }: SettingsProps) {
                          <Fingerprint className="w-7 h-7 text-guava-orange" />
                       </div>
                       <div>
-                         <h4 className="text-lg font-black italic">Biometric Authentication</h4>
+                         <h4 className="text-lg font-black">Biometric Authentication</h4>
                          <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mt-1">FaceID / TouchID Enforcement</p>
                       </div>
                    </div>
@@ -296,7 +296,7 @@ export default function Settings({ user }: SettingsProps) {
            {activeTab === 'keys' && (
              <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
                 <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden p-10">
-                   <h3 className="text-xl font-black text-guava-dark dark:text-white italic mb-8">Node Identity Keys</h3>
+                   <h3 className="text-xl font-black text-guava-dark dark:text-white mb-8">Node Identity Keys</h3>
                    <div className="space-y-6">
                       <div className="p-8 bg-gray-50 dark:bg-white/5 rounded-[32px] border border-dashed border-gray-200 dark:border-white/10">
                          <div className="flex items-center justify-between mb-4">
@@ -319,7 +319,7 @@ export default function Settings({ user }: SettingsProps) {
            {activeTab === 'data' && (
              <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
                 <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden p-10">
-                   <h3 className="text-xl font-black text-guava-dark dark:text-white italic mb-8">Data Governance</h3>
+                   <h3 className="text-xl font-black text-guava-dark dark:text-white mb-8">Data Governance</h3>
                    <div className="p-8 bg-orange-50 dark:bg-orange-500/5 rounded-3xl border border-orange-100 dark:border-orange-500/10 mb-8">
                       <p className="text-sm font-bold text-guava-dark dark:text-white">Your data is stored locally on this node and encrypted via your identity key.</p>
                       <p className="text-xs text-gray-500 mt-2">ACX Portal never transmits unencrypted financial data to the central mesh.</p>
@@ -364,7 +364,7 @@ export default function Settings({ user }: SettingsProps) {
            {activeTab === 'devices' && (
              <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
                 <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden p-10">
-                   <h3 className="text-xl font-black text-guava-dark dark:text-white italic mb-8">Authorized Hardware</h3>
+                   <h3 className="text-xl font-black text-guava-dark dark:text-white mb-8">Authorized Hardware</h3>
                    <div className="space-y-4">
                       <div className="flex items-center justify-between p-6 bg-gray-50 dark:bg-white/5 rounded-3xl">
                          <div className="flex items-center gap-4">

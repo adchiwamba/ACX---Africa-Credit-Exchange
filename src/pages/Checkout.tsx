@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFirebase } from '../components/FirebaseProvider';
 import { firestoreService } from '../services/firestoreService';
 import { StockItem, LoanStatus } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShieldCheck, 
   Zap, 
@@ -16,7 +17,7 @@ import {
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { profile: user } = useFirebase();
+  const { profile: user, updateProfile } = useFirebase();
   const productId = searchParams.get('productId');
 
   const [product, setProduct] = useState<StockItem | null>(null);
@@ -45,35 +46,81 @@ export default function Checkout() {
     }
   }, [productId]);
 
+  const [underwritingStep, setUnderwritingStep] = useState<string | null>(null);
+  const [underwritingProgress, setUnderwritingProgress] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (underwritingStep && underwritingProgress < 100) {
+      interval = setInterval(() => {
+        setUnderwritingProgress(prev => {
+          const next = prev + Math.floor(Math.random() * 8) + 4;
+          return next >= 100 ? 100 : next;
+        });
+      }, 150);
+    }
+    return () => clearInterval(interval);
+  }, [underwritingStep, underwritingProgress]);
+
   const handleApplyCredit = async () => {
     if (!product || !user) return;
     
     setIsProcessing(true);
+    setUnderwritingProgress(0);
+    
+    // Step-by-step underwriting simulation for premium UX
+    const steps = [
+      'Extracting mobile money transaction velocity...',
+      'Mapping asset geotags & merchant registration...',
+      'Refining Capital Resonance index based on payment history...',
+      'Deploying secure instant liquidity via ACX BNPL Pool...',
+      'Signing secure alternative-data electronic contract...'
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+      setUnderwritingStep(steps[i]);
+      setUnderwritingProgress(prev => Math.max(prev, i * 20));
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    setUnderwritingProgress(100);
+    
     try {
-      // Create a loan request specifically for this asset
+      // Create a loan request specifically for this asset, marked FUNDED immediately
+      // representing instant POS credit checkout approval.
       await firestoreService.createLoan({
         borrowerId: user.uid,
+        lenderId: 'retailer_merchant_pos', // Assigned to POS merchant ledger
         amount: product.price,
         currency: product.currency || 'USD',
-        purpose: `Instant Credit Purchase: ${product.name}`,
+        purpose: `Instant POS Credit: ${product.name}`,
         durationMonths: 12,
         interestRate: 15,
-        status: LoanStatus.PENDING,
+        status: LoanStatus.FUNDED,
         creditScoreSnapshot: user.creditScore || 650,
         alternativeDataMetrics: {
           scannedCheckout: true,
           assetCategory: product.category,
-          source: 'QR_DEEP_LINK'
+          source: 'QR_DEEP_LINK',
+          checkoutChannel: 'ACX Retail POS Hub',
+          underwrittenAt: new Date().toISOString(),
+          customerName: user.displayName,
+          buyerScore: user.creditScore
         }
       });
 
-      alert(`Success! Your credit application for the ${product.name} has been submitted for review.`);
-      navigate('/portfolio');
+      // Award small loyalty incentive to credit score for utilizing digital channels
+      await updateProfile({
+        creditScore: Math.min(850, (user.creditScore || 650) + 12)
+      });
+
+      alert(`Success! Your POS credit purchase for ${product.name} has been instantly approved and funded by the ACX BNPL Pool.`);
+      navigate('/repayments');
     } catch (error) {
       console.error("Purchase failed:", error);
       alert("Failed to process credit application. Please try again.");
     } finally {
       setIsProcessing(false);
+      setUnderwritingStep(null);
     }
   };
 
@@ -96,7 +143,7 @@ export default function Checkout() {
             <AlertCircle className="w-10 h-10" />
           </div>
           <div>
-            <h2 className="text-2xl font-black italic tracking-tighter text-guava-dark">Asset Record Not Found</h2>
+            <h2 className="text-2xl font-black tracking-tighter text-guava-dark">Asset Record Not Found</h2>
             <p className="text-sm text-gray-500 mt-2">The scanned barcode or link appears to be invalid or has expired from our active registry.</p>
           </div>
           <button 
@@ -111,7 +158,61 @@ export default function Checkout() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 animate-in fade-in duration-700">
+    <div className="max-w-4xl mx-auto p-4 md:p-8 animate-in fade-in duration-700 relative">
+      <AnimatePresence>
+        {underwritingStep && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[100] flex flex-col items-center justify-center p-6 text-white"
+          >
+            <div className="max-w-md w-full text-center space-y-8">
+              <div className="relative w-32 h-32 mx-auto">
+                {/* Circular Scan Effect */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0 border-4 border-t-guava-orange border-r-transparent border-b-transparent border-l-transparent rounded-full"
+                />
+                <div className="absolute inset-3 border border-white/5 rounded-full flex items-center justify-center">
+                  <span className="text-2xl font-black font-mono text-guava-orange">{underwritingProgress}%</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-guava-orange/80 animate-pulse">
+                  ACX Underwriting Engine Elite v3.0
+                </span>
+                <h3 className="text-lg font-black tracking-tight text-white uppercase mt-1">Analyzing Smart Digital Trust</h3>
+                <p className="text-xs text-white/50 font-mono font-medium max-w-sm mx-auto h-12">
+                  {underwritingStep}
+                </p>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-guava-orange transition-all duration-300"
+                  style={{ width: `${underwritingProgress}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-left font-mono">
+                <div className="p-3 bg-white/5 border border-white/5 rounded-xl">
+                  <p className="text-[8px] opacity-40 uppercase">Channel Code</p>
+                  <p className="text-[10px] font-bold text-white/90">QR-POS-FASTLANE</p>
+                </div>
+                <div className="p-3 bg-white/5 border border-white/5 rounded-xl">
+                  <p className="text-[8px] opacity-40 uppercase">Target APR</p>
+                  <p className="text-[10px] font-bold text-guava-green">15.0% COMPENSATED</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <button 
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-guava-dark mb-8 group transition-all"
@@ -133,19 +234,19 @@ export default function Checkout() {
           </div>
 
           <div>
-             <h1 className="text-4xl font-black italic tracking-tighter text-guava-dark leading-none mb-4">{product.name}</h1>
+             <h1 className="text-4xl font-black tracking-tighter text-guava-dark leading-none mb-4">{product.name}</h1>
              <p className="text-sm text-gray-500 leading-relaxed font-medium">{product.description}</p>
           </div>
 
           <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[32px] border border-gray-100">
              <div className="flex-1">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Asset Value</p>
-                <p className="text-3xl font-black italic text-guava-dark">${product.price.toLocaleString()}</p>
+                <p className="text-3xl font-black text-guava-dark">${product.price.toLocaleString()}</p>
              </div>
              <div className="w-px h-12 bg-gray-200" />
              <div className="flex-1">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Currency</p>
-                <p className="text-3xl font-black italic text-guava-orange">{product.currency}</p>
+                <p className="text-3xl font-black text-guava-orange">{product.currency}</p>
              </div>
           </div>
         </div>
@@ -159,7 +260,7 @@ export default function Checkout() {
                       <Zap className="w-5 h-5 text-white" />
                    </div>
                    <div>
-                      <h3 className="text-xl font-black italic tracking-tighter">Buy on Credit</h3>
+                      <h3 className="text-xl font-black tracking-tighter">Buy on Credit</h3>
                       <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest">Powered by ACX Instant-Liquidity</p>
                    </div>
                 </div>
@@ -167,15 +268,15 @@ export default function Checkout() {
                 <div className="space-y-6">
                    <div className="flex justify-between items-center py-4 border-b border-white/10">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Estimated APR</span>
-                      <span className="text-sm font-black italic text-guava-green">15.0% Fixed</span>
+                      <span className="text-sm font-black text-guava-green">15.0% Fixed</span>
                    </div>
                    <div className="flex justify-between items-center py-4 border-b border-white/10">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Tenure</span>
-                      <span className="text-sm font-black italic">12 Months</span>
+                      <span className="text-sm font-black">12 Months</span>
                    </div>
                    <div className="flex justify-between items-center py-4 border-b border-white/10">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Monthly Installment</span>
-                      <span className="text-sm font-black italic text-guava-orange">${(product.price * 1.15 / 12).toFixed(2)}</span>
+                      <span className="text-sm font-black text-guava-orange">${(product.price * 1.15 / 12).toFixed(2)}</span>
                    </div>
                 </div>
 

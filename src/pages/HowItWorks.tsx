@@ -1,29 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Building, Users, CreditCard, Shield, FileText, Clock, 
   CheckCircle, XCircle, TrendingUp, Award, Zap, Globe, 
-  Wallet, Activity, UserX, AlertCircle, DollarSign, Briefcase, Landmark,
-  TrendingDown, RefreshCw, Repeat, Eye, UserCheck
+  Wallet, UserX, AlertCircle, DollarSign, Briefcase, Landmark,
+  TrendingDown, RefreshCw, Repeat, Eye, UserCheck, ArrowRight
 } from 'lucide-react';
 import { UserRole, UserProfile } from '../types';
 import PublicNavbar from '../components/PublicNavbar';
 import Footer from '../components/Footer';
 
-export default function HowItWorks() {
+interface HowItWorksProps {
+  user?: UserProfile | null;
+  onLogin?: (user: UserProfile) => void;
+}
+
+export default function HowItWorks({ user, onLogin }: HowItWorksProps) {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
   const [activeTab, setActiveTab] = useState<'business' | 'borrower'>('business');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const currentYear = new Date().getFullYear();
 
-  // Business/Lender Pricing Plans
+  // Pricing plans for businesses
   const businessPricingPlans = [
     {
-      name: 'Start-Up',
+      name: 'Startup',
       price: billingCycle === 'monthly' ? '$99' : '$990',
-      monthlyPrice: 99,
-      yearlyPrice: 990,
+      yearlyPrice: '$990',
+      monthlyPrice: '$99',
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $198/year' : null,
       features: [
@@ -31,18 +41,18 @@ export default function HowItWorks() {
         'Up to 50 active loans at once',
         'Basic credit scoring access',
         'Standard blacklist queries (50/month)',
-        'View candidate marketplace',
-        'Basic applicant tracking',
-        'Email support'
+        'Email support (48hr response)',
+        'Basic reporting dashboard',
+        'Single user account'
       ],
       recommended: false,
       icon: Building
     },
     {
-      name: 'Medium Sized',
+      name: 'Professional',
       price: billingCycle === 'monthly' ? '$299' : '$2,990',
-      monthlyPrice: 299,
-      yearlyPrice: 2990,
+      yearlyPrice: '$2,990',
+      monthlyPrice: '$299',
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $598/year' : null,
       features: [
@@ -50,9 +60,12 @@ export default function HowItWorks() {
         'Up to 500 active loans at once',
         'Advanced AI credit scoring',
         'Full blacklist access with real-time sync',
-        'Enhanced candidate search',
-        'Recruitment progress dashboard',
-        'Priority support'
+        'Priority support & SLA (24hr response)',
+        'Bulk borrower verification',
+        'Custom risk analytics dashboard',
+        'Automated loan approval workflows',
+        'Up to 5 user accounts',
+        'Export reports (CSV/PDF)'
       ],
       recommended: true,
       icon: Briefcase
@@ -60,8 +73,8 @@ export default function HowItWorks() {
     {
       name: 'Corporate',
       price: billingCycle === 'monthly' ? '$699' : '$6,990',
-      monthlyPrice: 699,
-      yearlyPrice: 6990,
+      yearlyPrice: '$6,990',
+      monthlyPrice: '$699',
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $1,398/year' : null,
       features: [
@@ -69,9 +82,14 @@ export default function HowItWorks() {
         'Up to 2,000 active loans at once',
         'Enterprise AI credit scoring models',
         'Unlimited blacklist queries',
-        'Advanced candidate discovery',
-        'Executive recruitment reports',
-        'Guided onboarding'
+        '24/7 priority support',
+        'Bulk borrower verification with auto-approval',
+        'Advanced risk analytics & reporting dashboards',
+        'Unlimited user accounts with role-based access',
+        'Automated loan approval & disbursement workflows',
+        'Multi-currency settlement support',
+        'Regulatory compliance reporting tools',
+        'White-labeled reports'
       ],
       recommended: false,
       icon: Landmark
@@ -79,31 +97,36 @@ export default function HowItWorks() {
     {
       name: 'Enterprise',
       price: billingCycle === 'monthly' ? '$1,499' : '$14,990',
-      monthlyPrice: 1499,
-      yearlyPrice: 14990,
+      yearlyPrice: '$14,990',
+      monthlyPrice: '$1,499',
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $2,998/year' : null,
       features: [
         'Unlimited disbursement capacity',
         'Unlimited active loans',
         'Custom AI credit models & algorithms',
-        'Unlimited blacklist queries + private blacklist',
-        'Advanced marketplace access',
-        'Exports and executive analytics',
-        'Dedicated support'
+        'Unlimited blacklist queries',
+        '24/7 dedicated support team',
+        'Real-time cross-border settlement',
+        'Multi-country license support',
+        'Custom compliance & regulatory tools',
+        'Private blacklist integration',
+        'Dedicated infrastructure',
+        'SLA guarantees with financial penalties',
+        'Full white-label customization'
       ],
       recommended: false,
       icon: Globe
     }
   ];
 
-  // Consumer/Borrower Pricing Plans
-  const consumerPricingPlans = [
+  // Pricing plans for borrowers - all include real-time credit
+  const borrowerPricingPlans = [
     {
       name: 'Basic',
       price: billingCycle === 'monthly' ? '$5' : '$50',
-      monthlyPrice: 5,
-      yearlyPrice: 50,
+      yearlyPrice: '$50',
+      monthlyPrice: '$5',
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $10/year' : null,
       features: [
@@ -121,8 +144,8 @@ export default function HowItWorks() {
     {
       name: 'Plus',
       price: billingCycle === 'monthly' ? '$12' : '$120',
-      monthlyPrice: 12,
-      yearlyPrice: 120,
+      yearlyPrice: '$120',
+      monthlyPrice: '$12',
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $24/year' : null,
       features: [
@@ -142,8 +165,8 @@ export default function HowItWorks() {
     {
       name: 'Premium',
       price: billingCycle === 'monthly' ? '$25' : '$250',
-      monthlyPrice: 25,
-      yearlyPrice: 250,
+      yearlyPrice: '$250',
+      monthlyPrice: '$25',
       period: billingCycle === 'monthly' ? 'month' : 'year',
       savings: billingCycle === 'yearly' ? 'Save $50/year' : null,
       features: [
@@ -165,42 +188,56 @@ export default function HowItWorks() {
     }
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleBackToHome = () => {
     navigate('/');
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleDemoAccess = () => {
+    const demoUser = {
+      uid: 'demo_' + Date.now(),
+      email: 'demo@acx.africa',
+      displayName: 'Demo User',
+      role: UserRole.BORROWER,
+      creditScore: 720,
+      kycStatus: 'VERIFIED',
+      currency: 'USD',
+      preferredCurrencies: ['USD', 'KES'],
+      balance: 5000,
+      country: 'Kenya',
+      phoneCode: '+254',
+      languages: ['English'],
+      photoURL: '',
+      is2FAEnabled: false
+    };
+    localStorage.setItem('acx_demo_user', JSON.stringify(demoUser));
+    window.location.href = '/';
+  };
+
   return (
     <div className="min-h-screen bg-white text-black">
-      <PublicNavbar />
+      <PublicNavbar onLogin={onLogin || (() => { window.location.href = '/'; })} />
 
+      {/* Add padding-top for fixed navbar */}
       <div className="pt-14">
-        {/* Hero Section with Background Image */}
-        <div className="relative">
-          <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ 
-              backgroundImage: 'url("https://images.unsplash.com/photo-1591696205602-2f950c417cb9?q=80&w=1170&auto=format")',
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/70 to-guava-dark/80" />
-          
-          <section className="relative z-10 py-16 md:py-24 px-4 md:px-6">
-            <div className="max-w-6xl mx-auto text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-4 text-white">
-                  How <span className="text-guava-orange">ACX</span> Works
-                </h1>
-                <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
-                  A dual-sided platform connecting institutional capital with African borrowers through AI-powered credit scoring
-                </p>
-              </motion.div>
-            </div>
-          </section>
-        </div>
+        {/* Hero Section */}
+        <section className="bg-gradient-to-br from-guava-dark to-black text-white py-16 md:py-24 px-4 md:px-6">
+          <div className="max-w-6xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-4">
+                How <span className="text-guava-orange">ACX</span> Works
+              </h1>
+              <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto">
+                A dual-sided platform connecting institutional capital with African borrowers through AI-powered credit scoring
+              </p>
+            </motion.div>
+          </div>
+        </section>
 
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 bg-white sticky top-14 z-30">
@@ -297,7 +334,7 @@ export default function HowItWorks() {
                 </div>
               </div>
 
-              {/* Business Pricing Plans */}
+              {/* Business Pricing Plans with Billing Switcher */}
               <div className="mb-16">
                 <div className="text-center mb-10">
                   <h3 className="text-2xl md:text-3xl font-black tracking-tighter mb-3">
@@ -356,7 +393,7 @@ export default function HowItWorks() {
                       <div className="mb-4">
                         <span className="text-3xl font-black">{plan.price}</span>
                         <span className="text-gray-400 text-sm">/{plan.period}</span>
-                        {plan.savings && (
+                        {plan.savings && billingCycle === 'yearly' && (
                           <p className="text-[10px] text-guava-green font-bold mt-1">{plan.savings}</p>
                         )}
                       </div>
@@ -653,7 +690,7 @@ export default function HowItWorks() {
                 </div>
               </div>
 
-              {/* Consumer Pricing Plans */}
+              {/* Borrower Pricing Plans */}
               <div className="mb-16">
                 <div className="text-center mb-10">
                   <h3 className="text-2xl md:text-3xl font-black tracking-tighter mb-3">
@@ -686,7 +723,7 @@ export default function HowItWorks() {
                   </div>
                 </div>
                 <div className="grid md:grid-cols-3 gap-6">
-                  {consumerPricingPlans.map((plan) => (
+                  {borrowerPricingPlans.map((plan) => (
                     <motion.div
                       key={plan.name}
                       whileHover={{ y: -8 }}
@@ -712,7 +749,7 @@ export default function HowItWorks() {
                       <div className="mb-4">
                         <span className="text-3xl font-black">{plan.price}</span>
                         <span className="text-gray-400 text-sm">/{plan.period}</span>
-                        {plan.savings && (
+                        {plan.savings && billingCycle === 'yearly' && (
                           <p className="text-[10px] text-guava-green font-bold mt-1">{plan.savings}</p>
                         )}
                       </div>
@@ -805,9 +842,20 @@ export default function HowItWorks() {
             <h2 className="text-3xl md:text-4xl font-black tracking-tighter mb-4">
               Ready to Join the ACX Network?
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+            <p className="text-gray-600 max-w-2xl mx-auto mb-8">
               Whether you're looking to deploy capital or build credit history, ACX is your gateway to African financial growth.
             </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("trigger-acx-signup"));
+              }}
+              className="px-8 py-4 bg-guava-orange hover:bg-guava-orange/90 text-white rounded-xl font-bold flex items-center gap-2 mx-auto transition-colors shadow-lg shadow-guava-orange/20 cursor-pointer"
+            >
+              Sign up to ACX
+              <ArrowRight className="w-5 h-5" />
+            </motion.button>
           </div>
         </section>
       </div>

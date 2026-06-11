@@ -158,6 +158,17 @@ export const firestoreService = {
     }
   },
 
+  async updateRepayment(repaymentId: string, data: Partial<Repayment>): Promise<void> {
+    const path = `repayments/${repaymentId}`;
+    try {
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const docRef = doc(db, 'repayments', repaymentId);
+      await updateDoc(docRef, data);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
   // Audit Logs
   async getAuditLogs(): Promise<AuditLog[]> {
     const path = 'auditLogs';

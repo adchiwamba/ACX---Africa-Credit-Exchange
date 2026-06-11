@@ -74,7 +74,7 @@ export default function MarketMaker({ user }: MarketMakerProps) {
               ))}
             </div>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white">ICX Node Manager</h1>
+          <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">ICX Node Manager</h1>
           <p className="text-gray-400 font-mono text-xs mt-2 uppercase tracking-widest flex items-center gap-2">
             <Lock className="w-3 h-3" /> Encrypted Session: {user.uid.slice(0, 8)}...
           </p>

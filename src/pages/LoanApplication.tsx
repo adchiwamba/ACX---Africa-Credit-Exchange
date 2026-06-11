@@ -87,7 +87,7 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
                <Skull className="w-12 h-12 text-white" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-5xl font-black italic tracking-tighter">Application Portal Denied</h2>
+              <h2 className="text-5xl font-black tracking-tighter">Application Portal Denied</h2>
               <p className="text-red-500 font-black uppercase tracking-[0.3em] text-xs">Node Status: Permanently Blacklisted</p>
             </div>
             <p className="text-gray-400 font-medium max-w-md mx-auto leading-relaxed italic">
@@ -112,10 +112,10 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
   const [errors, setErrors] = useState<{ purpose?: string }>({});
   const [formData, setFormData] = useState({
     amount: 10000,
-    currency: 'USD',
-    purpose: 'Working Capital',
+    currency: user.currency || 'USD',
+    purpose: '',
     duration: 12,
-    industry: 'Technology',
+    industry: '',
     interestRate: 12
   });
 
@@ -182,6 +182,15 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
       );
       
       alert("Application Submitted for Market Bidding!");
+      setFormData({
+        amount: 10000,
+        currency: user.currency || 'USD',
+        purpose: '',
+        duration: 12,
+        industry: '',
+        interestRate: 12
+      });
+      setScoreResult(null);
       setStep(1); // Reset
     } catch (error) {
       console.error("Submission failed:", error);
@@ -266,7 +275,7 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
                          setErrors({...errors, purpose: undefined});
                        }}
                        className={`px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all ${
-                         formData.purpose === p ? 'border-black bg-black text-white' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'
+                         formData.purpose === p ? 'border-guava-orange bg-guava-orange text-white' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'
                        }`}
                      >
                        {p}
@@ -302,7 +311,7 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
                     setStep(2);
                   }
                 }}
-                className="w-full py-5 bg-black text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10"
+                className="w-full py-5 bg-guava-orange text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-guava-orange/20"
               >
                 Continue Application
                 <ArrowRight className="w-5 h-5" />
@@ -349,14 +358,14 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
               <div className="flex gap-4">
                 <button 
                   onClick={() => setStep(1)}
-                  className="px-8 py-5 border-2 border-gray-100 rounded-3xl font-black text-gray-400 hover:border-black hover:text-black transition-all"
+                  className="px-8 py-5 border-2 border-gray-100 rounded-3xl font-black text-gray-400 hover:border-guava-orange hover:text-guava-orange transition-all"
                 >
                   Back
                 </button>
                 <button 
                   onClick={handleScore}
                   disabled={isScoring}
-                  className="flex-1 py-5 bg-black text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10 disabled:opacity-50"
+                  className="flex-1 py-5 bg-guava-orange text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-guava-orange/20 disabled:opacity-50"
                 >
                   {isScoring ? 'Analyzing...' : 'Generate AI Credit Score'}
                   <Zap className="w-5 h-5" />
@@ -472,21 +481,21 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
                          console.error("Notify fail", e);
                       }
                     }}
-                    className="flex-1 py-5 border-2 border-black text-black rounded-3xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-black hover:text-white transition-all shadow-lg"
+                    className="flex-1 py-5 border-2 border-guava-orange text-guava-orange rounded-3xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-guava-orange hover:text-white transition-all shadow-lg shadow-guava-orange/10 cursor-pointer"
                   >
                      <Download className="w-5 h-5" />
                      Download Score
                   </button>
                   <button 
                     onClick={() => setStep(2)}
-                    className="px-8 py-5 border-2 border-gray-100 rounded-3xl font-black text-gray-400 hover:border-black hover:text-black transition-all"
+                    className="px-8 py-5 border-2 border-gray-100 rounded-3xl font-black text-gray-400 hover:border-guava-orange hover:text-guava-orange transition-all cursor-pointer"
                   >
                     Recalculate
                   </button>
                   <button 
                     onClick={handleSubmitApplication}
                     disabled={isSubmitting}
-                    className="flex-1 py-5 bg-black text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10 disabled:opacity-50"
+                    className="flex-1 py-5 bg-guava-orange text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-guava-orange/20 disabled:opacity-50 cursor-pointer"
                   >
                     {isSubmitting ? 'Submitting...' : 'Publish to Marketplace'}
                     {!isSubmitting && <ArrowRight className="w-5 h-5" />}

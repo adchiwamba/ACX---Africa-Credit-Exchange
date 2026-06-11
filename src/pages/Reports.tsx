@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useFirebase } from '../components/FirebaseProvider';
+import { UserRole } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   TrendingUp, 
@@ -18,8 +20,17 @@ import {
   Map as MapIcon,
   FileDown,
   DollarSign,
-  LucideIcon
+  LucideIcon,
+  FileText,
+  Check,
+  Trash2,
+  Plus,
+  MessageSquare,
+  ArrowRight,
+  Lock,
+  Printer
 } from 'lucide-react';
+import PrintReportModal from '../components/PrintReportModal';
 import { 
   Line, 
   XAxis, 
@@ -92,19 +103,136 @@ const DATA_ALLOCATION = [
   { category: 'Education', amount: 15000, risk: 'Low' },
 ];
 
+const SPEC_STEPS = [
+  {
+    id: 'intake',
+    title: 'Stage 01: Borrower Intake & Onboarding',
+    icon: LayoutGrid,
+    sla: '< 3 seconds',
+    owner: 'KYC & API Gateway',
+    risk: 'Encrypted TLS parameters & digital sign verification',
+    desc: 'The gateway validates borrower authentication credentials, checks system device footprint, and pulls mobile telemetry/transaction histories over securely-hashed pipes.',
+    features: [
+      'Encrypted Device-Footprint Telemetry Extraction',
+      'Instant Digital Identification Cross-Verifications',
+      'Dynamic Consent Capture Mechanics'
+    ],
+    technicalSpec: 'Uses AES-256 GCM envelope encryption on payload level; rates requests utilizing adaptive IP rate-limiting guards.'
+  },
+  {
+    id: 'underwrite',
+    title: 'Stage 02: AI Credit Score Underwriting',
+    icon: Activity,
+    sla: '< 1.2 seconds',
+    owner: 'Underwriting ML Engine',
+    risk: 'Volatility correlation limits & regional defaults threshold',
+    desc: 'Analyzes user aggregate cash flow indicators to compute their microfinance/SME resonance score (400-850 scale) and evaluates repayment bandwidth.',
+    features: [
+      'Cash Flow Volatility & Drift Analysis Mapping',
+      'Real-time Country & Macroeconomic Risk Balancing',
+      'Dynamic Personal Credit Resonance Score (400-850)'
+    ],
+    technicalSpec: 'Runs gradient boosting classifier nodes trained on historical sub-Saharan and Southeast Asian default parameters.'
+  },
+  {
+    id: 'blacklist',
+    title: 'Stage 03: Centralized Integrity Registry',
+    icon: ShieldCheck,
+    sla: '< 500ms',
+    owner: 'Escrow Registry DB',
+    risk: 'Peer validated credentials & active duplicate checking',
+    desc: 'Checks database for any overlapping open loans across external liquidity nodes or active entries in the institutional blacklists to prevent over-leverage.',
+    features: [
+      'ACX Global Anti-Collusion Sync API',
+      'Syndicated Institutional Fraud & High-Risk Register Check',
+      'Instant Active-Capacity Threshold Validation'
+    ],
+    technicalSpec: 'Sub-millisecond query executing against highly-indexed, replicated regional transactional tables.'
+  },
+  {
+    id: 'syndicate',
+    title: 'Stage 04: Syndication Board Desk',
+    icon: Globe,
+    sla: '24-48 hours max',
+    owner: 'Liquidity Exchange',
+    risk: 'Fractional lender bounds & minimum yield guardrails',
+    desc: 'Pools capital for the loan. Single institutional default is cushioned because loans are highly fractionated across multiple independent lenders.',
+    features: [
+      'Fractional Funding Pool Syndication (Max 40% per Lender)',
+      'Real-time Yield Adjustments based on Risk Level',
+      'Automated Liquidity Recall on Auction Timeout'
+    ],
+    technicalSpec: 'Sub-accounting settlement ledger executing distributed locks during loan slice reservation.'
+  },
+  {
+    id: 'disburse',
+    title: 'Stage 05: Automated Disbursement Routing',
+    icon: Zap,
+    sla: '< 15 seconds',
+    owner: 'Currency Swap Rails',
+    risk: 'Prefunded swap buffers & immediate transaction receipts',
+    desc: 'Triggers instant currency swap with low-spread partners and dispatches final funds directly onto the borrower’s mobile wallet or local digital bank route.',
+    features: [
+      'Multi-currency Native Swap Execution Routing',
+      'Integrated Mobile Money Webhook Handlers',
+      'Prefunded Escrow Collateral Locking'
+    ],
+    technicalSpec: 'API interface directly integrated in banking gateways with automatic rollback on network anomalies.'
+  },
+  {
+    id: 'repay',
+    title: 'Stage 06: Collections & Automated Reminders',
+    icon: DollarSign,
+    sla: 'Continuous Sync',
+    owner: 'Recoup Ledger System',
+    risk: 'Grace schedules, auto-debits & automated reminders',
+    desc: 'Manages repayment collection, triggers pre-arrears reminders via email or push notifications, and handles standard or deferred grace schedules.',
+    features: [
+      'Automated Reminder Service (48h Pre-arrears Email & Push Notifications)',
+      'Borrower Repayment History Exports (Custom PDF Generation Engine)',
+      'Flexible Collections & Auto-debits on Mobile Accounts'
+    ],
+    technicalSpec: 'Daily scheduled cron job checks active loans. Generates structured borrower statements as PDF exports.'
+  }
+];
+
 const REPORT_TABS = [
   { id: 'overview', label: 'Executive Overview', icon: LayoutGrid },
   { id: 'liquidity', label: 'Liquidity Analysis', icon: Zap },
   { id: 'geography', label: 'Geographical Spread', icon: MapIcon },
   { id: 'risk', label: 'Risk Integrity', icon: ShieldCheck },
+  { id: 'spec', label: 'Loan Workflow Spec', icon: FileText },
 ];
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const { profile } = useFirebase();
+  const isAdmin = profile?.role === UserRole.ADMIN;
+
+  const allowedTabs = REPORT_TABS.filter(tab => {
+    if (tab.id === 'overview' || tab.id === 'spec') {
+      return isAdmin;
+    }
+    return true;
+  });
+
+  const [activeTab, setActiveTab] = useState('liquidity');
+
+  // Align active tab once profile loads
+  useEffect(() => {
+    if (profile) {
+      if (isAdmin) {
+        setActiveTab('overview');
+      } else {
+        setActiveTab('liquidity');
+      }
+    }
+  }, [profile, isAdmin]);
+
   const [isFilterPaneOpen, setIsFilterPaneOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(new Date().toLocaleTimeString());
   const { notify } = useNotify();
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -113,6 +241,81 @@ export default function Reports() {
     region: 'All',
     minResonance: 600
   });
+
+  const [selectedSpecStep, setSelectedSpecStep] = useState('intake');
+  const [specComments, setSpecComments] = useState<{
+    id: string;
+    section: string;
+    author: string;
+    comment: string;
+    priority: 'low' | 'medium' | 'high' | 'critical';
+    resolved: boolean;
+    date: string;
+  }[]>(() => {
+    const saved = localStorage.getItem('acx_boss_comments');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: '1',
+        section: 'AI Credit Assessment',
+        author: 'Chief Executive / Board President',
+        comment: 'Please clarify how the cash flow volatility mapping protects our capital during sudden market dips (e.g. currency shifts).',
+        priority: 'critical',
+        resolved: false,
+        date: '2026-05-29 11:30'
+      },
+      {
+        id: '2',
+        section: 'Syndication & Auction Board',
+        author: 'Risk Management Officer',
+        comment: 'We need to cap fractional pools so no single lender holds over 40% of standard micro-retail loans.',
+        priority: 'medium',
+        resolved: true,
+        date: '2026-05-29 11:45'
+      }
+    ];
+  });
+
+  const [commentSection, setCommentSection] = useState('General Overview');
+  const [commentAuthor, setCommentAuthor] = useState('Board Reviewer');
+  const [commentText, setCommentText] = useState('');
+  const [commentPriority, setCommentPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
+
+  const handleAddComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+
+    const newComment = {
+      id: Date.now().toString(),
+      section: commentSection,
+      author: commentAuthor || 'Board Reviewer',
+      comment: commentText,
+      priority: commentPriority,
+      resolved: false,
+      date: new Date().toISOString().replace('T', ' ').substring(0, 16)
+    };
+
+    const updated = [newComment, ...specComments];
+    setSpecComments(updated);
+    localStorage.setItem('acx_boss_comments', JSON.stringify(updated));
+    setCommentText('');
+    notify('success', 'Review Added', 'Your feedback comment has been recorded securely.');
+  };
+
+  const handleToggleCommentResolved = (commentId: string) => {
+    const updated = specComments.map(c => 
+      c.id === commentId ? { ...c, resolved: !c.resolved } : c
+    );
+    setSpecComments(updated);
+    localStorage.setItem('acx_boss_comments', JSON.stringify(updated));
+    notify('info', 'Status Updated', 'Comment status has been toggled.');
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    const updated = specComments.filter(c => c.id !== commentId);
+    setSpecComments(updated);
+    localStorage.setItem('acx_boss_comments', JSON.stringify(updated));
+    notify('success', 'Comment Cleared', 'Specification comment was deleted.');
+  };
 
   const refreshData = () => {
     setIsLoading(true);
@@ -145,6 +348,355 @@ export default function Reports() {
   };
 
   const handleDownload = () => {
+    if (activeTab === 'spec') {
+      notify('info', 'Exporting Specifications', 'Compiling granular system specifications and lifecycle workbook for supervisor review...');
+      setTimeout(() => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const doc = new jsPDF() as any;
+          const timestamp = new Date().toLocaleString();
+          const email = "adchiwamba@gmail.com";
+
+          const addPageHeaderFooter = (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            docObj: any,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            _pageNum?: number
+          ) => {
+            // Header bar
+            docObj.setFillColor(30, 41, 59); // Charcoal gray top banner (guava-dark)
+            docObj.rect(0, 0, 210, 15, 'F');
+            
+            docObj.setTextColor(255, 255, 255);
+            docObj.setFontSize(8);
+            docObj.setFont('helvetica', 'bold');
+            docObj.text('ACX PORTAL OPERATIONS BLUEPRINT', 20, 9);
+            
+            docObj.setTextColor(243, 109, 56); // guava-orange accent
+            docObj.text('RECOVERY & DISBURSEMENT DIRECTIVE', 135, 9);
+          };
+
+          // ==============================
+          // PAGE 1: FULL COVER SHEET
+          // ==============================
+          // Top Decorative Bands
+          doc.setFillColor(30, 41, 59); // guava-dark background block
+          doc.rect(0, 0, 210, 150, 'F');
+          
+          doc.setFillColor(243, 109, 56); // orange visual strip divider
+          doc.rect(0, 150, 210, 4, 'F');
+
+          // Title Text inside cover block
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(28);
+          doc.setFont('helvetica', 'bold');
+          doc.text('ACX SYSTEM SPECS', 20, 55);
+          doc.text('& LIFECYCLE WORKBOOK', 20, 68);
+
+          // Subtitle
+          doc.setTextColor(243, 109, 56);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text('END-TO-END OPERATIONAL LOAN MANAGEMENT MANUAL', 20, 80);
+
+          doc.setTextColor(226, 232, 240);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          const summaryText = "An exhaustive, stage-by-stage technical, business, and ledger-level blueprint documenting borrower registration payloads, mobile network API telemetry lookups, proprietary GBDT AI credit underwriting grids, real-time sync with regional collusion registries, fractional syndication limits, mobile money wallet transfer webhooks, and autonomous repayment reminders.";
+          const summaryLines = doc.splitTextToSize(summaryText, 170);
+          doc.text(summaryLines, 20, 92);
+
+          // Cover Metadata Card
+          doc.setFillColor(248, 250, 252); // light slate gray box
+          doc.rect(20, 170, 170, 85, 'F');
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(20, 170, 170, 85, 'D');
+
+          // Metadata Contents
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text('DOCUMENT CLASSIFICATION & METADATA', 26, 182);
+          doc.line(26, 185, 184, 185);
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.text('• Authorized Recipient:', 26, 195);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${email}`, 70, 195);
+
+          doc.setFont('helvetica', 'normal');
+          doc.text('• System Integrity Build:', 26, 203);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Production v4.0 (Active Gateway)', 70, 203);
+
+          doc.setFont('helvetica', 'normal');
+          doc.text('• Scope Matrix:', 26, 211);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Borrower Request, Underwriting, Syndication, Settlement', 70, 211);
+
+          doc.setFont('helvetica', 'normal');
+          doc.text('• Compile Timestamp:', 26, 219);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${timestamp}`, 70, 219);
+
+          doc.setFont('helvetica', 'normal');
+          doc.text('• Safety & Risk Group:', 26, 227);
+          doc.setFont('helvetica', 'bold');
+          doc.text('LEVEL-C4 AUDITED PLATFORM (CONSOLIDATED SIGN-OFF)', 70, 227);
+
+          doc.setFont('helvetica', 'normal');
+          doc.text('• Automated Daemon:', 26, 235);
+          doc.setFont('helvetica', 'bold');
+          doc.text('48-Hour Pre-Arrears autonomous notifier active', 70, 235);
+
+          // ==============================
+          // PAGE 2: S1 & S2 ONBOARDING & UNDERWRITING
+          // ==============================
+          doc.addPage();
+          addPageHeaderFooter(doc, 2);
+
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text('PART I: BORROWER ONBOARDING & AI UNDERWRITING', 20, 28);
+          doc.line(20, 31, 190, 31);
+
+          // Stage 01
+          doc.setTextColor(243, 109, 56);
+          doc.setFontSize(11);
+          doc.text('STAGE 01: Borrower Inquiry & Carrier API Telemetry', 20, 40);
+          
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          const stage1Text = "The lifecycle initiates immediately as an applicant lodges a loan query payload in the platform. Upon secure identity token routing, the gateway retrieves granular network configurations, system device identifiers, fingerprint hashes, and geolocations, while capturing explicit user digital signatures. Parallel asynchronous API tunnels query regional Cellular Carriers and Mobile Money Operator (MTN, Orange, Safaricom, etc.) gateways with pre-vetted consent indicators. This extracts account balances, cash velocity statistics, and monthly volume histories over the preceding 6 months to define an organic transactional profile.";
+          const stage1Lines = doc.splitTextToSize(stage1Text, 170);
+          doc.text(stage1Lines, 20, 46);
+
+          // Capabilities
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('CAPABILITY SPECIFICATIONS:', 20, 75);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text('• Automated multi-country identity cross-verifications (NIN, BVN, Geolocation matches).', 20, 81);
+          doc.text('• Real-time carrier transaction ledger queries using sub-second web sockets.', 20, 86);
+          doc.text('• Encrypted, non-custodial metadata telemetry caching with automated consent tracking.', 20, 91);
+
+          // Stage 02
+          doc.setTextColor(243, 109, 56);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text('STAGE 02: GBDT Algorithmic Underwriting & Scoring', 20, 103);
+
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          const stage2Text = "Raw transactional indices are immediately mapped as numeric matrices and pushed into the Underwriting Engine. Built on optimized Gradient Boosting Decision Tree (GBDT) nodes, the algorithm weights variables including historical microfinance payment promptness, cash flow volatilities, debit ratios, and localized macroeconomic stress triggers. The module outputs a Personal Credit Resonance Score, scaling from 400 (unusable/extreme default band) to 850 (prime sovereign credit). This indicator informs maximum borrow capacity, repayment SLA boundaries, and direct lender yields.";
+          const stage2Lines = doc.splitTextToSize(stage2Text, 170);
+          doc.text(stage2Lines, 20, 109);
+
+          // Capabilities
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('CAPABILITY SPECIFICATIONS:', 20, 138);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text('• Decision trees calibrated against historical Sub-Saharan and SE Asian micro-default profiles.', 20, 144);
+          doc.text('• Flow drift checks: deviations of cash-flow patterns exceeding +/-12% prompt review quarantine.', 20, 149);
+          doc.text('• Live pricing yield bounds adjusted dynamically based on calculated default correlations.', 20, 154);
+
+          // Financial & Security Logic block card
+          doc.setFillColor(241, 245, 249);
+          doc.rect(20, 163, 170, 68, 'F');
+          doc.setDrawColor(203, 213, 225);
+          doc.rect(20, 163, 170, 68, 'D');
+
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text('FINANCIAL MECHANICS: INTEREST ACCRUEMENT & REPAYMENT VELOCITY', 24, 171);
+          doc.line(24, 173, 186, 173);
+
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text('• Tenure Sensitivity: Loan interest is dynamically adjusted based on the repayment period. Shorter tenures (1-3 months)', 24, 179);
+          doc.text('  significantly reduce cumulative interest accrual, lowering the borrower’s cost of capital. Longer tenures (6-12 months)', 24, 183);
+          doc.text('  distribute major principal loads over safe installment bounds, scaling target cumulative yields to protect lender liquidity.', 24, 187);
+          doc.text('• AI Underwritten Pricing: The borrower’s GBDT credit assessment score guides the dynamic interest rate. Profile matching', 24, 192);
+          doc.text('  reduces core risk offsets, delivering lower dynamic APR ranges directly to compliant SME borrowers.', 24, 196);
+          doc.text('• Ledger-Locked Settlement: Immutable repayment schedules and amortization scales are committed and hardlocked into', 24, 201);
+          doc.text('  Firestore databases upon signing. Values are protected and cannot be updated during active operational loan lifecycles.', 24, 205);
+          doc.text('• Auto-Sweep Core Recovery: High-speed integrations with mobile wallet APIs trigger pre-authorized installment auto-debits', 24, 210);
+          doc.text('  exactly on maturity timestamps (S-06) to accelerate capital recoupment speed and fully eliminate default arrears.', 24, 214);
+
+          // ==============================
+          // PAGE 3: S3 & S4 INTEGRITY & SYNDICATION
+          // ==============================
+          doc.addPage();
+          addPageHeaderFooter(doc, 3);
+
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text('PART II: PLATFORM INTEGRITY GATEWAYS & POOL SYNDICATION', 20, 28);
+          doc.line(20, 31, 190, 31);
+
+          // Stage 03
+          doc.setTextColor(243, 109, 56);
+          doc.setFontSize(11);
+          doc.text('STAGE 03: Distributed Collusion Registrar & Anti-Fraud Gates', 20, 40);
+
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          const stage3Text = "Before capital allocation is committed, the computed application is checked through the ACX Global Anti-Collusion Sync API. This database cross-references decentralized shared ledger networks to catch dual-application fraud, cross-borrowing, and outstanding credit balances across external liquidity vaults or blacklists. Sub-millisecond reads parse indexing vectors of high-risk borrowers to guard against capital over-indexing and system exploitation.";
+          const stage3Lines = doc.splitTextToSize(stage3Text, 170);
+          doc.text(stage3Lines, 20, 46);
+
+          // Stage 04
+          doc.setTextColor(243, 109, 56);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text('STAGE 04: Syndication Board Floor & Fractional Allocation Limits', 20, 75);
+
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          const stage4Text = "Upon safety sign-off, loans are listed on the Syndication Auction Desk. Individual, corporate, and institutional capital providers can subscribe to slices of loans to fractionalize risk exposure. The platform enforces a strict safety restriction: no single lender may absorb more than 40% of standard microfinance loan totals. This ensures that a single lender default is cushioned and spreads exposure across diverse liquidity networks. The syndication matches capital within a 24-to-48 hour window.";
+          const stage4Lines = doc.splitTextToSize(stage4Text, 170);
+          doc.text(stage4Lines, 20, 81);
+
+          // Capabilities
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 41, 59);
+          doc.text('CAPABILITY SPECIFICATIONS:', 20, 110);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          doc.text('• Global distributed ledger checking executing under 500ms bounds.', 20, 116);
+          doc.text('• Dynamic risk balancing adjustor adjusting target loan yields in response to lender balances.', 20, 121);
+          doc.text('• Escrow collateral locking mechanism securing assets during active syndication reservation.', 20, 126);
+
+          // SLA Table on Page 3
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text('INTEGRATED METRICS: SYSTEM LATENCY & ARCHITECTURE SLA', 20, 142);
+          
+          const specTableData = [
+            ['Stage', 'System Role & Target', 'Assigned Component', 'Target SLA', 'Risk Guardrail'],
+            ['S-01', 'Borrower Intake & MMO Pull', 'KYC & API Gateway', '< 3.0s Latency', 'TLS AES-256 Envelope'],
+            ['S-02', 'Underwriting & Alg Scoring', 'Risk Model ML Hive', '< 1.2s Latency', 'Volatility Drift Flag'],
+            ['S-03', 'Integrity Sync lookup', 'Collusion Registry', '< 500ms Read', 'Live Transaction Lock'],
+            ['S-04', 'Syndication Funding matches', 'Liquidity Exchange', '24h - 48h limit', '40% Fractional Pool Clamp'],
+            ['S-05', 'Automated Wallet Routing', 'Clearing Swap Desk', '< 15s Broadcast', 'Callback Webhop Guard'],
+            ['S-06', 'Repayment & Reminder scheduler', 'Recoup Daemon Engine', 'Continuous Sync', '48h Autonomous Reminder']
+          ];
+
+          autoTable(doc, {
+            startY: 147,
+            head: [specTableData[0]],
+            body: specTableData.slice(1),
+            theme: 'grid',
+            headStyles: { fillColor: [243, 109, 56] },
+            styles: { fontSize: 7.5, cellPadding: 2.5 },
+          });
+
+          // ==============================
+          // PAGE 4: S5 & S6 SWAP, REPAYMENT & BOARD COMMENTS
+          // ==============================
+          doc.addPage();
+          addPageHeaderFooter(doc, 4);
+
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text('PART III: SWAP DISBURSEMENT & AUTONOMOUS RECOVERY ENGINE', 20, 28);
+          doc.line(20, 31, 190, 31);
+
+          // Stage 05
+          doc.setTextColor(243, 109, 56);
+          doc.setFontSize(11);
+          doc.text('STAGE 05: Foreign Exchange Clearing & Native Wallet Swaps', 20, 40);
+
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          const stage5Text = "When a syndicated loan closes successfully, final execution initiates native clearing transactions. FX clearing routes convert base capitals (e.g., USD, EUR, ZAR) into local currencies (NGN, KES, GHS) utilizing pre-funded, low-spread liquidity pools. Instant API disbursements deliver capital directly onto mobile borrower wallets. Automatic webhooks monitor final handshakes; any network failure triggers transaction rollbacks, preventing partial disbursements.";
+          const stage5Lines = doc.splitTextToSize(stage5Text, 170);
+          doc.text(stage5Lines, 20, 46);
+
+          // Stage 06 + Automated Notification Service
+          doc.setTextColor(243, 109, 56);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text('STAGE 06: Autonomous Pre-Arrears Notifications & Collection Engine', 20, 75);
+
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(8.5);
+          doc.setFont('helvetica', 'normal');
+          const stage6Text = "Repayments are monitored by automated billing databases. To keep delinquencies exceptionally low, the system activates an autonomous notification daemon. This cron checks active loans daily: exactly 48 hours before an installment due date, the daemon triggers automated emails, SMS, and borrower-profile push notifications detailing the bill amount, schedule timeline, and links for auto-debit triggers. The module supports customizable grace calendars, automatic cellular bank debits, and deferred repayments for verified SME stress.";
+          const stage6Lines = doc.splitTextToSize(stage6Text, 170);
+          doc.text(stage6Lines, 20, 81);
+
+          // Live Board Endorsements and Review comments
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(10.5);
+          doc.setFont('helvetica', 'bold');
+          doc.text('PART IV: ACTIVE AUDIT TRAILS & BOSS ENDORSEMENT LOGS', 20, 115);
+          doc.line(20, 118, 190, 118);
+
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Feedback, queries, and instructions logged live inside the Board Review panel are presented below as an official clearance audit trail:', 20, 123);
+
+          if (specComments.length === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(20, 128, 170, 25, 'F');
+            doc.setDrawColor(226, 232, 240);
+            doc.rect(20, 128, 170, 25, 'D');
+            
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text('SYSTEM DISCHARGE STATUS: DIRECTORS UNANIMOUSLY APPROVED', 25, 138);
+            doc.setFontSize(8);
+            doc.setTextColor(71, 85, 105);
+            doc.setFont('helvetica', 'normal');
+            doc.text('No active questions or revisions are pending. System integrity parameters are certified.', 25, 144);
+          } else {
+            const commentTableContent = specComments.map(c => [
+              c.section,
+              c.author,
+              c.comment,
+              c.priority.toUpperCase(),
+              c.resolved ? 'RESOLVED' : 'ACTIVE / PENDING',
+              c.date
+            ]);
+
+            autoTable(doc, {
+              startY: 128,
+              head: [['Category', 'Auditor/Signer', 'Feedback/Directive', 'Priority', 'Status', 'Date Logged']],
+              body: commentTableContent,
+              theme: 'striped',
+              headStyles: { fillColor: [30, 41, 59] },
+              styles: { fontSize: 7.5, cellPadding: 2 },
+            });
+          }
+
+          doc.save(`ACX-EndToEnd-Loan-Module-Technical-Specs-Handbook-${new Date().toISOString().split('T')[0]}.pdf`);
+          notify('success', 'Comprehensive Handbook Compiled', 'The formatted 4-page Technical Specs Handbook has been successfully compiled and downloaded.');
+        } catch (e) {
+          console.error(e);
+          notify('error', 'Compilation Failed', 'Internal PDF engine error.');
+        }
+      }, 1500);
+      return;
+    }
+
     notify('info', 'Exporting Intelligence', 'Preparing your intelligence report for export...');
     setTimeout(() => {
       try {
@@ -232,7 +784,7 @@ export default function Reports() {
           </div>
           <div className="h-6 w-[1px] bg-gray-200" />
           <nav className="flex gap-1">
-            {REPORT_TABS.map(tab => (
+            {allowedTabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -258,6 +810,9 @@ export default function Reports() {
           </button>
           <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Share Report">
             <Share2 className="w-4 h-4 text-gray-500" />
+          </button>
+          <button onClick={() => setIsPrintModalOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-slate-500 hover:text-guava-orange" title="Print Friendly Ledger / Report">
+            <Printer className="w-4 h-4" />
           </button>
           <button onClick={handleDownload} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Export Data">
              <FileDown className="w-4 h-4 text-gray-500" />
@@ -373,7 +928,7 @@ export default function Reports() {
                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: region.color }} />
                                      <span className="text-[9px] font-black uppercase text-gray-500 whitespace-nowrap">{region.name}</span>
                                   </div>
-                                  <div className="text-sm font-black italic">{region.value}%</div>
+                                  <div className="text-sm font-black">{region.value}%</div>
                                </div>
                              ))}
                           </div>
@@ -522,7 +1077,7 @@ export default function Reports() {
                                        </div>
                                     </div>
                                     <div className="text-right">
-                                       <p className="text-xs font-black text-green-500 italic">{country.growth}</p>
+                                       <p className="text-xs font-black text-green-500">{country.growth}</p>
                                        <p className="text-[9px] font-black uppercase tracking-tighter text-gray-300">MoM Growth</p>
                                     </div>
                                  </motion.div>
@@ -554,13 +1109,13 @@ export default function Reports() {
                                   <div className="flex border-l-2 border-guava-orange pl-4">
                                      <div>
                                         <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Primary Hub</p>
-                                        <p className="text-xl font-black italic">West African Corridor</p>
+                                        <p className="text-xl font-black">West African Corridor</p>
                                      </div>
                                   </div>
                                   <div className="flex border-l-2 border-white/20 pl-4">
                                      <div>
                                         <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Emerging Frontier</p>
-                                        <p className="text-xl font-black italic">East African Tech-belt</p>
+                                        <p className="text-xl font-black">East African Tech-belt</p>
                                      </div>
                                   </div>
                                </div>
@@ -635,6 +1190,359 @@ export default function Reports() {
                    </div>
                 </div>
               )}
+
+              {activeTab === 'spec' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
+                  {/* Left Column: Visual Flow & Specifications Detail */}
+                  <div className="lg:col-span-8 space-y-8">
+                    {/* Top Blueprint Summary */}
+                    <div className="bg-white rounded-3xl p-8 border border-gray-150 shadow-sm animate-fade-in">
+                      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest bg-guava-orange/10 text-guava-orange rounded-md">Confidential Blueprint</span>
+                          <h3 className="text-xl font-black text-guava-dark uppercase tracking-tight mt-2">Operational Loan Life-Cycle Flow</h3>
+                          <p className="text-xs text-gray-400 mt-1 font-semibold text-slate-500">Click on any lifecycle node below to audit technical specifications, SLA metrics, and operational checks.</p>
+                        </div>
+                        <button
+                          onClick={handleDownload}
+                          type="button"
+                          className="shrink-0 py-3 px-5 bg-guava-dark text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-guava-orange transition-all flex items-center justify-center gap-2 border border-guava-dark hover:border-guava-orange shadow-lg shadow-gray-100 group"
+                        >
+                          <FileText className="w-4 h-4 text-guava-orange group-hover:text-white transition-colors" />
+                          <span>Download Boss Review Manual (PDF)</span>
+                        </button>
+                      </div>
+
+                      {/* Unified Interactive Flowchart Schema */}
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-8">
+                        {SPEC_STEPS.map((step, idx) => {
+                          const StepIcon = step.icon;
+                          const isSelected = selectedSpecStep === step.id;
+                          return (
+                            <button
+                              key={step.id}
+                              onClick={() => setSelectedSpecStep(step.id)}
+                              className={cn(
+                                "relative p-4 rounded-2xl border text-left transition-all flex flex-col justify-between h-36 group",
+                                isSelected 
+                                  ? "bg-guava-dark text-white border-guava-dark shadow-lg shadow-guava-dark/10" 
+                                  : "bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200 hover:bg-gray-100/50"
+                              )}
+                            >
+                              <div className="flex justify-between items-center w-full">
+                                <div className={cn(
+                                  "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+                                  isSelected ? "bg-white/10 text-white" : "bg-white text-guava-dark shadow-sm border border-gray-100"
+                                )}>
+                                  <StepIcon className="w-4 h-4" />
+                                </div>
+                                <span className={cn(
+                                  "text-[9px] font-mono font-bold px-1.5 py-0.5 rounded",
+                                  isSelected ? "bg-white/10 text-white/80" : "bg-gray-200/50 text-gray-500"
+                                )}>
+                                  S0{idx + 1}
+                                </span>
+                              </div>
+                              <div>
+                                <p className={cn(
+                                  "text-[9px] font-bold uppercase tracking-tight line-clamp-1 opacity-65",
+                                  isSelected ? "text-white" : "text-gray-400"
+                                )}>
+                                  {step.owner}
+                                </p>
+                                <h4 className={cn(
+                                  "text-[11px] font-black tracking-tight line-clamp-2 mt-0.5 group-hover:text-guava-orange transition-colors",
+                                  isSelected ? "text-white group-hover:text-white" : "text-guava-dark"
+                                )}>
+                                  {step.title.split(': ')[1]}
+                                </h4>
+                              </div>
+                              {/* Horizontal connector lines for desktop */}
+                              {idx < SPEC_STEPS.length - 1 && (
+                                <div className="hidden md:block absolute -right-2 top-1/2 -translate-y-1/2 z-10">
+                                  <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Deep-Dive Inspection Panel */}
+                      {(() => {
+                        const step = SPEC_STEPS.find(s => s.id === selectedSpecStep) || SPEC_STEPS[0];
+                        const StepIcon = step.icon;
+                        return (
+                          <motion.div
+                            key={step.id}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-6 bg-gray-50/55 rounded-2xl border border-gray-100 space-y-6"
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-guava-orange text-white rounded-xl flex items-center justify-center">
+                                  <StepIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-black text-guava-dark uppercase tracking-tight">{step.title}</h4>
+                                  <p className="text-[10px] text-gray-400 font-bold">Primary system component: <span className="text-guava-orange font-black">{step.owner}</span></p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Target SLA</span>
+                                <div className="px-3 py-1 bg-white text-guava-dark text-[10px] font-mono font-black border border-gray-100 rounded-lg">
+                                  {step.sla}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-4">
+                                <div>
+                                  <h5 className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Functional Description</h5>
+                                  <p className="text-xs text-gray-600 leading-relaxed font-semibold">{step.desc}</p>
+                                </div>
+                                <div className="pt-2">
+                                  <h5 className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Key System Capabilities</h5>
+                                  <ul className="space-y-2">
+                                    {step.features.map((f, i) => (
+                                      <li key={i} className="flex items-start gap-2 text-xs text-gray-600 font-semibold">
+                                        <Check className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
+                                        <span>{f}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+
+                              <div className="space-y-4 bg-white p-5 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                                <div className="space-y-3">
+                                  <div>
+                                    <h5 className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1 flex items-center gap-1">
+                                      <ShieldCheck className="w-3 h-3 text-guava-orange" />
+                                      Safety Controller Guardrails
+                                    </h5>
+                                    <p className="text-xs text-slate-700 font-bold bg-amber-500/5 border border-amber-500/10 p-2.5 rounded-xl">
+                                      {step.risk}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <h5 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 font-mono">
+                                      API Node Specs
+                                    </h5>
+                                    <p className="text-[10px] font-mono text-gray-500 leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                                      {step.technicalSpec}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-[9px] text-gray-400 font-mono">
+                                  <Lock className="w-3 h-3" /> Encrypted ISO-20022 message block
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Integrated Key Feature Deep-Dive Showcase */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Repayment statement export */}
+                      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between pt-6">
+                        <div>
+                          <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center mb-4">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <h4 className="text-sm font-black text-guava-dark uppercase tracking-tight">Statement Portability Engine</h4>
+                          <p className="text-xs text-gray-500 mt-2 leading-relaxed font-semibold text-slate-500">
+                            Empower borrowers to generate formatted, cryptographically-hashable repayment histories directly inside their profiles. Fits our decentralized, transparent governance paradigm.
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-[10px] font-mono font-bold text-gray-400 w-full animate-pulse">
+                          <span>Output: Format ISO PDF</span>
+                          <span className="text-blue-500 bg-blue-50 px-2 py-0.5 rounded">Active Capability</span>
+                        </div>
+                      </div>
+
+                      {/* Reminder Engine Service */}
+                      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between pt-6">
+                        <div>
+                          <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center mb-4">
+                            <Zap className="w-5 h-5" />
+                          </div>
+                          <h4 className="text-sm font-black text-guava-dark uppercase tracking-tight">Pre-Arrears Autonomous Reminders</h4>
+                          <p className="text-xs text-gray-500 mt-2 leading-relaxed font-semibold text-slate-500">
+                            System initiates secure batch queries 48 hours prior to amortization dates. Triggers push/email reminders through pre-authorised gateways ensuring low default rates.
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-[10px] font-mono font-bold text-gray-400 w-full animate-pulse">
+                          <span>Trigger: 48h Advance SLA</span>
+                          <span className="text-amber-500 bg-amber-50 px-2 py-0.5 rounded">Active Daemon</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Board & Boss Comments Panel */}
+                  <div className="lg:col-span-4 space-y-6">
+                    <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MessageSquare className="w-4 h-4 text-guava-orange" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-guava-dark">Executive Comment Board</h3>
+                      </div>
+                      <p className="text-[10px] text-gray-400 font-bold mb-6">Internal review feedback for directors and supervisors.</p>
+
+                      {/* Comment Input Form */}
+                      <form onSubmit={handleAddComment} className="space-y-4 mb-6">
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Your Name / Title</label>
+                          <input 
+                            type="text" 
+                            required
+                            value={commentAuthor}
+                            onChange={(e) => setCommentAuthor(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3.5 py-2 text-xs font-black outline-none focus:border-guava-orange"
+                            placeholder="e.g. Chief Executive / Risk Officer"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Target Section / Stage</label>
+                          <select 
+                            value={commentSection}
+                            onChange={(e) => setCommentSection(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-xs font-black outline-none focus:border-guava-orange"
+                          >
+                            <option value="General Overview">General Overview</option>
+                            <option value="Borrower Intake">Borrower Intake</option>
+                            <option value="AI Credit Assessment">AI Credit Assessment</option>
+                            <option value="Centralized Registry">Centralized Registry</option>
+                            <option value="Syndication & Auction Board">Syndication & Auction Board</option>
+                            <option value="Disbursement Routing">Disbursement Routing</option>
+                            <option value="Repayments & Reminders">Repayments & Reminders</option>
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Priority</label>
+                            <select 
+                              value={commentPriority}
+                              onChange={(e) => setCommentPriority(e.target.value as 'low' | 'medium' | 'high' | 'critical')}
+                              className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-xs font-black outline-none focus:border-guava-orange"
+                            >
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                              <option value="critical">Critical</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col justify-end">
+                            <span className="text-[8px] text-gray-400 font-bold mb-1 block">Saves locally</span>
+                            <div className="text-[9px] text-guava-orange font-bold flex items-center gap-1">
+                              <ShieldCheck className="w-3.5 h-3.5" /> Direct Sign
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Review Comment</label>
+                          <textarea 
+                            rows={3}
+                            required
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3.5 py-2 text-xs font-medium outline-none focus:border-guava-orange resize-none"
+                            placeholder="Write questions, revisions or approvals..."
+                          />
+                        </div>
+
+                        <button 
+                          type="submit"
+                          className="w-full py-2.5 bg-guava-orange text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> File Comment / Request
+                        </button>
+                      </form>
+
+                      {/* Display Comments List */}
+                      <div className="space-y-4 pt-6 border-t border-gray-100 max-h-[380px] overflow-y-auto custom-scrollbar">
+                        <h4 className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                          <span>Board Requests ({specComments.length})</span>
+                          {specComments.length > 0 && <span className="text-[8px] opacity-40">Scroll to view</span>}
+                        </h4>
+
+                        {specComments.length === 0 ? (
+                          <div className="py-8 text-center text-gray-400 text-xs font-bold bg-gray-50 rounded-2xl border border-gray-50/50">
+                            No active comments. Fully approved.
+                          </div>
+                        ) : (
+                          specComments.map((c) => (
+                            <motion.div 
+                              layout
+                              key={c.id}
+                              className={cn(
+                                "p-4 rounded-2xl border transition-all space-y-2 relative group",
+                                c.resolved 
+                                  ? "bg-gray-50/50 border-gray-100/50 opacity-60" 
+                                  : "bg-white border-gray-100 shadow-sm"
+                              )}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-0.5">
+                                  <span className={cn(
+                                    "px-1.5 py-0.5 text-[8px] font-black uppercase tracking-tight rounded",
+                                    c.priority === 'critical' ? "bg-red-50 text-red-500" :
+                                    c.priority === 'high' ? "bg-orange-50 text-orange-500" :
+                                    c.priority === 'medium' ? "bg-amber-50 text-amber-500" : "bg-gray-100 text-gray-500"
+                                  )}>
+                                    {c.priority}
+                                  </span>
+                                  <span className="text-[9px] text-gray-400 font-bold ml-2">{c.section}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button 
+                                    onClick={() => handleToggleCommentResolved(c.id)}
+                                    title={c.resolved ? "Reopen comment" : "Resolve comment"}
+                                    type="button"
+                                    className={cn(
+                                      "p-1.5 rounded-lg border transition-all",
+                                      c.resolved 
+                                        ? "bg-green-50 border-green-200 text-green-600" 
+                                        : "bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200"
+                                    )}
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteComment(c.id)}
+                                    title="Delete comment"
+                                    type="button"
+                                    className="p-1.5 rounded-lg bg-gray-50 border border-gray-100 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <p className={cn("text-xs leading-relaxed", c.resolved ? "line-through text-gray-400" : "text-gray-600 font-semibold")}>
+                                {c.comment}
+                              </p>
+
+                              <div className="flex justify-between items-center text-[9px] text-gray-400 font-bold border-t border-gray-50 pt-2">
+                                <span className="text-guava-dark">{c.author}</span>
+                                <span>{c.date}</span>
+                              </div>
+                            </motion.div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -695,7 +1603,7 @@ export default function Reports() {
             <div className="space-y-4">
                <div className="flex justify-between items-center">
                   <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Min Resonance</label>
-                  <span className="text-[10px] font-black italic">{filters.minResonance}</span>
+                  <span className="text-[10px] font-black">{filters.minResonance}</span>
                </div>
                <input 
                  type="range" 
@@ -733,6 +1641,16 @@ export default function Reports() {
           </div>
         </div>
       </motion.aside>
+
+      <PrintReportModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        filters={filters}
+        specComments={specComments}
+        DATA_ALLOCATION={DATA_ALLOCATION}
+        DATA_LIQUIDITY_FLOW={DATA_LIQUIDITY_FLOW}
+        DATA_COUNTRY_SPREAD={DATA_COUNTRY_SPREAD}
+      />
     </div>
   );
 }
@@ -753,7 +1671,7 @@ function KPICard({ title, value, trend, icon: Icon, isSuccess }: { title: string
           </div>
        </div>
        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">{title}</p>
-       <h4 className="text-2xl font-black text-guava-dark font-mono italic tracking-tighter">{value}</h4>
+       <h4 className="text-2xl font-black text-guava-dark font-mono tracking-tighter">{value}</h4>
     </div>
   );
 }
@@ -764,7 +1682,7 @@ function IntegrityMeter({ label, value, target, status }: { label: string, value
        <div className="flex justify-between items-end">
           <div>
              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{label}</p>
-             <h4 className="text-xl font-black text-guava-dark italic leading-none">{value}</h4>
+             <h4 className="text-xl font-black text-guava-dark leading-none">{value}</h4>
           </div>
           <div className="text-right">
              <p className="text-[8px] font-black uppercase text-gray-300">Target: {target}</p>

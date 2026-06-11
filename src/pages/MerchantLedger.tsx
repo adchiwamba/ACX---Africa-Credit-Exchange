@@ -4,6 +4,8 @@ import { firestoreService } from '../services/firestoreService';
 import { useFirebase } from '../components/FirebaseProvider';
 import { auditService } from '../lib/audit';
 import { motion, AnimatePresence } from 'motion/react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   Building2, 
   PlusCircle, 
@@ -15,7 +17,8 @@ import {
   RefreshCw, 
   Calculator,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Printer
 } from 'lucide-react';
 
 interface MerchantLedgerProps {
@@ -162,6 +165,89 @@ export default function MerchantLedger({ user }: MerchantLedgerProps) {
     }
   };
 
+  const handlePrintLedger = () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = new jsPDF() as any;
+      
+      // Page styling decoration
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.setTextColor(30, 41, 59); // dark slate text
+      doc.text('AFRICA CREDIT EXCHANGE', 20, 20);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text('MERCHANT ECOSYSTEM • ACTIVE CREDIT LEDGER', 20, 26);
+      
+      // Horizontal rule
+      doc.setDrawColor(226, 232, 240);
+      doc.line(20, 32, 190, 32);
+      
+      // Meta section
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Merchant Details:', 20, 42);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Name: ${user.displayName || 'ACX Merchant'}`, 20, 49);
+      doc.text(`Email / UID: ${user.email} (${user.uid})`, 20, 55);
+      doc.text(`Terminal Pool Balance: $${user.balance.toLocaleString()}`, 20, 61);
+      doc.text(`Total Deployed Capital: $${totalPrincipalIssued.toLocaleString()}`, 20, 67);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Report Details:', 120, 42);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated On: ${new Date().toLocaleString()}`, 120, 49);
+      doc.text(`Active Debt Lines: ${activeObligations.length} ($${activeAmount.toLocaleString()})`, 120, 55);
+      doc.text(`Average Active Yield: ${averageInterest}% ARR`, 120, 61);
+      
+      const tableHeaders = [['Purpose / Asset', 'Origin Date', 'Client / ID', 'Principal Amount', 'Rate', 'Term', 'State']];
+      const tableRows = loans.map(loan => {
+        const clientName = (loan.alternativeDataMetrics as { clientName?: string })?.clientName || "Customer Entity";
+        const cleanPurpose = loan.purpose.replace(`(Issued by ${user.displayName})`, '').trim();
+        return [
+          cleanPurpose,
+          new Date(loan.createdAt).toLocaleDateString(),
+          `${clientName}\n(${loan.borrowerId})`,
+          `$${loan.amount.toLocaleString()}`,
+          `${loan.interestRate}%`,
+          `${loan.durationMonths} Months`,
+          loan.status
+        ];
+      });
+      
+      autoTable(doc, {
+        startY: 75,
+        head: tableHeaders,
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { 
+          fillColor: [243, 146, 51], // guava orange #F39233
+          textColor: [255, 255, 255], 
+          fontStyle: 'bold' 
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 4,
+        },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          2: { cellWidth: 40 }
+        }
+      });
+      
+      doc.save(`ACX_Merchant_Ledger_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert('Could not export ledger as PDF.');
+    }
+  };
+
   // calculations
   const totalPrincipalIssued = loans.reduce((sum, l) => sum + l.amount, 0);
   const activeObligations = loans.filter(l => l.status === LoanStatus.FUNDED);
@@ -178,11 +264,19 @@ export default function MerchantLedger({ user }: MerchantLedgerProps) {
               <div className="w-2 h-2 bg-guava-orange rounded-full animate-pulse" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">ACX Retailer Merchant Ecosystem</span>
            </div>
-           <h2 className="text-5xl font-black tracking-tighter italic text-guava-dark dark:text-white">Merchant Cabinet</h2>
+           <h2 className="text-5xl font-black tracking-tighter text-guava-dark dark:text-white">Merchant Cabinet</h2>
            <p className="text-gray-400 dark:text-gray-500 text-sm font-medium mt-2">Design merchant credit lines, issue customer inventory financing, and track repayments directly.</p>
         </div>
 
         <div className="flex gap-4">
+          <button 
+             onClick={handlePrintLedger}
+             className="px-6 py-4 bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-white/5 hover:border-transparent hover:bg-guava-orange hover:text-white rounded-3xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm cursor-pointer dark:text-white"
+          >
+             <Printer className="w-4 h-4" />
+             Print Ledger
+          </button>
+
           <button 
              onClick={() => setIsIssueModalOpen(true)}
              className="px-6 py-4 bg-guava-orange text-white rounded-3xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-guava-dark transition-all shadow-xl shadow-guava-orange/20"
@@ -194,7 +288,7 @@ export default function MerchantLedger({ user }: MerchantLedgerProps) {
           <button 
              onClick={handleRefresh}
              disabled={isRefreshing}
-             className="p-4 bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-white/5 rounded-3xl text-gray-400 hover:text-guava-orange transition-colors"
+             className="p-4 bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-white/5 rounded-3xl text-gray-400 hover:text-guava-orange transition-colors cursor-pointer"
           >
              <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-guava-orange' : ''}`} />
           </button>
@@ -241,7 +335,7 @@ export default function MerchantLedger({ user }: MerchantLedgerProps) {
         <div className="p-8 border-b border-gray-50 dark:border-white/5 flex items-center justify-between">
            <div className="flex items-center gap-3">
               <Briefcase className="w-5 h-5 text-guava-orange" />
-              <h3 className="text-xl font-black text-guava-dark dark:text-white italic">Active Merchant Ledger</h3>
+              <h3 className="text-xl font-black text-guava-dark dark:text-white">Active Merchant Ledger</h3>
            </div>
            <span className="text-xs font-bold text-gray-400">Total Customer Records: {loans.length}</span>
         </div>
@@ -330,7 +424,7 @@ export default function MerchantLedger({ user }: MerchantLedgerProps) {
                   <Calculator className="w-8 h-8 text-guava-orange" />
                </div>
                <div>
-                  <h4 className="text-xl font-black text-guava-dark dark:text-white italic">Custom Dynamic BNPL Policies</h4>
+                  <h4 className="text-xl font-black text-guava-dark dark:text-white">Custom Dynamic BNPL Policies</h4>
                   <p className="text-gray-500 text-sm max-w-xl">Every consumer BNPL credit agreement issued contributes positively to your merchants trust ledger, unlock deep sync liquidity vaults from local partners.</p>
                </div>
             </div>
@@ -360,7 +454,7 @@ export default function MerchantLedger({ user }: MerchantLedgerProps) {
                <form onSubmit={handleIssueLoan} className="p-8 md:p-10 space-y-6">
                   <div>
                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-guava-orange">POS Channel Origination</span>
-                     <h3 className="text-3xl font-black tracking-tight mt-1 text-guava-dark dark:text-white italic">Direct Customer Credit</h3>
+                     <h3 className="text-3xl font-black tracking-tight mt-1 text-guava-dark dark:text-white">Direct Customer Credit</h3>
                   </div>
 
                   <div className="space-y-4">

@@ -72,26 +72,38 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
+  password?: string;
+  physicalAddress?: string;
+  latitude?: number;
+  longitude?: number;
   role: UserRole;
   creditScore: number;
   kycStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
   currency: string;
   preferredCurrencies: string[];
   balance: number;
-  country: string;
-  phoneCode: string;
-  languages: string[];
-  photoURL: string;
+  country?: string;
+  phoneCode?: string;
+  languages?: string[];
+  photoURL?: string;
   organizationDetails?: {
     companySize: string;
     contactPerson: string;
     industry: string;
     taxId?: string;
-    registrationNumber?: string;
-    yearEstablished?: string;
-    annualRevenue?: string;
+    yieldPools?: Record<string, { principal: number; timestamp: string }>;
+  };
+  borrowerDetails?: {
+    profile: BorrowerProfileData;
+    uploads: Record<string, boolean>;
+    verificationResults?: Record<string, VerificationResult>;
+    scoreResult: CreditScoreResult | null;
+    lastUpdated?: string;
   };
   is2FAEnabled: boolean;
+  inventory?: StockItem[];
+  isBlacklisted?: boolean;
+  delinquencyStage?: 'NONE' | 'INITIAL' | 'WRITTEN' | 'FINAL' | 'BLACKLISTED';
 }
 
 export interface CreditScoreResult {

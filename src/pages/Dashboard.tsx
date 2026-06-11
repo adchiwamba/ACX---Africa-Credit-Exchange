@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserProfile, UserRole, LoanStatus } from '../types';
+import { UserProfile, UserRole, LoanStatus, LoanRequest } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import LendingOrderModal from '../components/LendingOrderModal';
+import { MOCK_LOANS } from '../lib/store';
 import { 
   TrendingUp, 
   Clock, 
@@ -16,7 +17,10 @@ import {
   Check,
   X,
   PlusCircle,
-  Building2
+  Building2,
+  Search,
+  Coins,
+  Briefcase
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -51,6 +55,15 @@ const RECENT_ACTIVITIES = [
   "New Market Maker: Pan-African Bank-88"
 ];
 
+const FINANCIAL_INSTRUMENTS = [
+  { id: 'inst_1', name: 'SWIFT Settlement Bridge Node', category: 'Settlement Gateway', apr: 8.5, volume24h: 3420000, market: 'Pan-African Direct', risk: 'Low', provider: 'SWIFT Alliance', status: 'ACTIVE' },
+  { id: 'inst_2', name: 'Stripe Institutional Pool Payouts', category: 'Yield Pool', apr: 9.2, volume24h: 5800000, market: 'Global Settlement Proxy', risk: 'Medium-Low', provider: 'Stripe Connect', status: 'ACTIVE' },
+  { id: 'inst_3', name: 'MTN Mobile Money Cleared Liquidity', category: 'Micro-Finance Pool', apr: 11.0, volume24h: 1250000, market: 'East & West Africa', risk: 'Medium', provider: 'MTN MoMo API', status: 'ACTIVE' },
+  { id: 'inst_4', name: 'Safaricom M-Pesa Daraja Liquidity Node', category: 'BNPL Pool', apr: 10.5, volume24h: 2100000, market: 'East Africa Retail', risk: 'Low', provider: 'Safaricom Portal', status: 'ACTIVE' },
+  { id: 'inst_5', name: 'Alpha Capital High-Yield Syndicate', category: 'Securitized Debt Pool', apr: 12.0, volume24h: 940000, market: 'SME Over-vetted', risk: 'Medium-High', provider: 'Alpha Capital Node', status: 'ACTIVE' },
+  { id: 'inst_6', name: 'West Africa Micro-Retail Ledger', category: 'Direct Retail Pool', apr: 14.5, volume24h: 620000, market: 'ECOWAS Regional', risk: 'High', provider: 'Local Node JV', status: 'ACTIVE' },
+];
+
 import { firestoreService } from '../services/firestoreService';
 
 export default function Dashboard({ user }: DashboardProps) {
@@ -65,6 +78,13 @@ export default function Dashboard({ user }: DashboardProps) {
     score: user.creditScore,
     activeLoans: 0
   });
+
+  // Search and query terminal states
+  const [dbLoans, setDbLoans] = useState<LoanRequest[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTab, setSearchTab] = useState<'all' | 'loans' | 'instruments'>('all');
+  const [simulatedPoolCommit, setSimulatedPoolCommit] = useState<string | null>(null);
+  const [customFeedbackMsg, setCustomFeedbackMsg] = useState<{ type: 'success' | 'info'; title: string; desc: string } | null>(null);
 
   // State to track live count feeds
   const [globalCounts, setGlobalCounts] = useState({
@@ -90,6 +110,9 @@ export default function Dashboard({ user }: DashboardProps) {
     const fetchData = async () => {
       try {
         const allLoans = await firestoreService.getLoans();
+        const mergedLoans = allLoans.length > 0 ? allLoans : MOCK_LOANS;
+        setDbLoans(mergedLoans);
+
         const dbApplied = allLoans.length;
         const dbApproved = allLoans.filter(l => [LoanStatus.APPROVED, LoanStatus.FUNDED, LoanStatus.COMPLETED].includes(l.status)).length;
         const dbRejected = allLoans.filter(l => l.status === LoanStatus.REJECTED).length;
@@ -264,7 +287,7 @@ export default function Dashboard({ user }: DashboardProps) {
 
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Terminal Overview</h2>
+          <h2 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">Terminal Overview</h2>
           <div className="flex items-center gap-2 mt-1">
              <Activity className="w-3 h-3 text-guava-orange" />
              <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest">
@@ -275,13 +298,13 @@ export default function Dashboard({ user }: DashboardProps) {
         <div className="flex gap-3">
           <button 
             onClick={() => navigate('/portfolio')}
-            className="px-6 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold hover:bg-white dark:hover:bg-slate-800 transition-all uppercase tracking-widest text-slate-700 dark:text-slate-300"
+            className="px-6 py-2.5 border-2 border-slate-200 dark:border-slate-800 rounded-xl text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 hover:border-guava-orange dark:hover:border-guava-orange/60 transition-all cursor-pointer"
           >
             History
           </button>
           <button 
             onClick={() => isLender ? setIsOrderModalOpen(true) : navigate('/apply')}
-            className="px-6 py-2.5 bg-guava-dark text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 uppercase tracking-widest"
+            className="px-6 py-2.5 bg-guava-orange text-white rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-guava-orange/20 cursor-pointer"
           >
             {isLender ? 'New Loan Order' : 'Create Order'}
           </button>
@@ -293,6 +316,373 @@ export default function Dashboard({ user }: DashboardProps) {
         onClose={() => setIsOrderModalOpen(false)} 
         user={user} 
       />
+
+      {/* 🚀 INTEGRATED SEARCH & INSTRUMENT TERMINAL */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[32px] shadow-sm relative overflow-hidden transition-all duration-300">
+        <div className="absolute top-0 right-0 w-36 h-36 bg-guava-orange/5 rounded-full blur-[60px] pointer-events-none" />
+        
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-1.5 h-1.5 bg-guava-orange rounded-full animate-ping" />
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-guava-orange">Unified Port Node Query</span>
+            </div>
+            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Search Loan Applications & Instruments</h3>
+            <p className="text-xs text-slate-400 font-medium">Quickly query cross-border micro-credit ledger entries and yield liquidity tools across 52 African markets.</p>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full font-bold text-slate-500 font-mono">
+              Ledger: {dbLoans.length} entries
+            </span>
+            <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full font-bold text-slate-500 font-mono">
+              Instruments: {FINANCIAL_INSTRUMENTS.length} active
+            </span>
+          </div>
+        </div>
+
+        {/* Search Input Controller */}
+        <div className="relative group mb-4">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-guava-orange transition-colors" />
+          <input 
+            type="text" 
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCustomFeedbackMsg(null); // Clear feedback on search change
+            }}
+            placeholder="Type pool name, loan ID, country (e.g. Kenya, Nigeria), purpose, rate or risk metrics..."
+            className="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-sm focus:border-guava-orange focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-guava-orange/15 outline-none transition-all placeholder:text-slate-400 dark:text-white font-medium"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => {
+                setSearchQuery('');
+                setCustomFeedbackMsg(null);
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Suggested Quick Search Tags */}
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Suggested:</span>
+          {[
+            { tag: "Lagos Tech", query: "Lagos Tech" },
+            { tag: "SWIFT Gateway", query: "SWIFT" },
+            { tag: "Micro-Retail", query: "Retail" },
+            { tag: "Kenya", query: "Kenya" },
+            { tag: "Stripe Pool", query: "Stripe" },
+            { tag: "SME", query: "SME" },
+          ].map((item, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                setSearchQuery(item.query);
+                setCustomFeedbackMsg(null);
+              }}
+              className="px-3 py-1 bg-slate-50 dark:bg-slate-800 hover:bg-guava-orange/10 hover:text-guava-orange text-slate-500 rounded-lg text-xs font-medium border border-slate-200/50 dark:border-slate-800 hover:border-guava-orange/30 transition-all cursor-pointer"
+            >
+              {item.tag}
+            </button>
+          ))}
+        </div>
+
+        {/* Simulated Successful Commitment Toast Notification inside the component */}
+        <AnimatePresence>
+          {customFeedbackMsg && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 rounded-2xl bg-green-500/10 border border-green-500/20 text-green-500 flex items-center justify-between"
+            >
+              <div className="flex gap-3 items-center">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <div>
+                  <h5 className="text-xs font-black uppercase tracking-wider">{customFeedbackMsg.title}</h5>
+                  <p className="text-[11px] opacity-80 mt-0.5">{customFeedbackMsg.desc}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setCustomFeedbackMsg(null)}
+                className="text-xs uppercase font-black hover:opacity-80"
+              >
+                Close
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Filter Tab buttons */}
+        {searchQuery && (
+          <div className="flex border-b border-slate-100 dark:border-slate-800 mb-6 gap-6">
+            {[
+              { id: 'all', label: 'All Matches' },
+              { id: 'loans', label: `Loan Applications (${dbLoans.filter(l => (l.purpose || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.id || "").toLowerCase().includes(searchQuery.toLowerCase())).length})` },
+              { id: 'instruments', label: `Market Instruments (${FINANCIAL_INSTRUMENTS.filter(i => (i.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || (i.category || "").toLowerCase().includes(searchQuery.toLowerCase())).length})` }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setSearchTab(tab.id as 'all' | 'loans' | 'instruments')}
+                className={`pb-3 text-xs font-black uppercase tracking-widest relative transition-all cursor-pointer ${
+                  searchTab === tab.id 
+                    ? 'text-guava-orange' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {tab.label}
+                {searchTab === tab.id && (
+                  <motion.div 
+                    layoutId="activeSearchUnderline"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-guava-orange" 
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* If Not query - show Quick Highlight Grid */}
+        {!searchQuery && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Quick Preview active credits */}
+            <div className="p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Featured Loan Ledger (Real-time)</h4>
+                <span className="text-[9px] px-2 py-0.5 bg-guava-orange/10 text-guava-orange font-bold uppercase rounded">Top Rated</span>
+              </div>
+              <div className="space-y-3">
+                {dbLoans.slice(0, 2).map((loan) => (
+                  <div key={loan.id} className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
+                    <div>
+                      <p className="text-xs font-bold dark:text-white">{loan.purpose}</p>
+                      <span className="text-[9px] font-mono opacity-55 uppercase tracking-wide">{loan.id} • {loan.durationMonths}m @ {loan.interestRate}% APR</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold dark:text-white">${loan.amount.toLocaleString()}</p>
+                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                        loan.status === LoanStatus.APPROVED ? 'bg-blue-500/10 text-blue-500' :
+                        loan.status === LoanStatus.FUNDED ? 'bg-guava-green/10 text-guava-green' : 'bg-slate-500/10 text-slate-500'
+                      }`}>{loan.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Preview stable pools */}
+            <div className="p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Guaranteed Liquidity Instruments</h4>
+                <p className="text-[9px] font-bold text-guava-green uppercase flex items-center gap-1">
+                  <Check className="w-2.5 h-2.5" /> SECURED
+                </p>
+              </div>
+              <div className="space-y-3">
+                {FINANCIAL_INSTRUMENTS.slice(0, 2).map((inst) => (
+                  <div key={inst.id} className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
+                    <div>
+                      <p className="text-xs font-bold dark:text-white">{inst.name}</p>
+                      <span className="text-[9px] font-mono opacity-55 uppercase tracking-wide">{inst.category} • {inst.market}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-guava-green font-mono">{inst.apr}% APR</p>
+                      <span className="text-[8px] opacity-40 font-mono">Vol: ${(inst.volume24h / 1000000).toFixed(1)}M</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Search Results Drawer */}
+        {searchQuery && (
+          <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2 pb-2">
+            
+            {/* NO MATCHES FOUND */}
+            {dbLoans.filter(l => (l.purpose || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.id || "").toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && 
+             FINANCIAL_INSTRUMENTS.filter(i => (i.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || (i.category || "").toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+              <div className="text-center py-8 text-slate-400">
+                <Search className="w-8 h-8 mx-auto stroke-[1.5] mb-2 opacity-50" />
+                <p className="text-xs font-bold uppercase tracking-wider">No matching applications or instruments found</p>
+                <p className="text-[11px] opacity-75 mt-1">Try refining your search text or use one of the suggestions above.</p>
+              </div>
+            )}
+
+            {/* LOAN APPLICATIONS SECTION */}
+            {(searchTab === 'all' || searchTab === 'loans') && dbLoans.filter(l => (l.purpose || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.id || "").toLowerCase().includes(searchQuery.toLowerCase())).length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-2 sticky top-0 bg-white dark:bg-slate-900 py-1">
+                  <Briefcase className="w-4 h-4 text-slate-400" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Matching Credit & Loan Records ({dbLoans.filter(l => (l.purpose || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.id || "").toLowerCase().includes(searchQuery.toLowerCase())).length})</h4>
+                </div>
+                {dbLoans.filter(l => (l.purpose || "").toLowerCase().includes(searchQuery.toLowerCase()) || (l.id || "").toLowerCase().includes(searchQuery.toLowerCase())).map((loan) => (
+                  <div 
+                    key={loan.id} 
+                    className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-guava-orange/30 transition-all flex flex-col md:flex-row justify-between md:items-center gap-4 group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center font-bold text-[10px] text-guava-orange shrink-0">
+                        {loan.id.replace('loan_', '').toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-slate-800 dark:text-white">{loan.purpose}</span>
+                          <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${
+                            loan.status === LoanStatus.APPROVED ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                            loan.status === LoanStatus.FUNDED ? 'bg-guava-green/10 text-guava-green' : 'bg-amber-100 text-amber-700 font-bold'
+                          }`}>
+                            {loan.status}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                          ID: {loan.id} • Credit Res Snapshot: {loan.creditScoreSnapshot || 720} Rating
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between md:justify-end gap-6 shrink-0">
+                      <div className="text-left md:text-right">
+                        <p className="text-sm font-black text-slate-800 dark:text-white">${loan.amount.toLocaleString()} {loan.currency}</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">{loan.durationMonths} Mo @ {loan.interestRate}% APR</p>
+                      </div>
+
+                      {loan.status === LoanStatus.APPROVED && isLender ? (
+                        <button
+                          onClick={async () => {
+                            setSimulatedPoolCommit(loan.id);
+                            // Simulate delay of clearing nodes
+                            setTimeout(() => {
+                              // Fund Loan Request
+                              setDbLoans(prev => prev.map(l => l.id === loan.id ? { ...l, status: LoanStatus.FUNDED } : l));
+                              setLiveStats(prev => ({
+                                ...prev,
+                                invested: prev.invested + loan.amount,
+                                activeLoans: prev.activeLoans + 1
+                              }));
+                              setLiveEvents(prev => [
+                                {
+                                  id: `sim-fund-${Date.now()}`,
+                                  text: `[SUCCESS] Direct Liquidity Sweep: committed $${loan.amount.toLocaleString()} into ${loan.purpose} (ACX Node Authorized)`,
+                                  timestamp: new Date().toLocaleTimeString()
+                                },
+                                ...prev.slice(0, 5)
+                              ]);
+                              setCustomFeedbackMsg({
+                                type: 'success',
+                                title: 'Clearing Complete',
+                                desc: `Sweep finalized! Vested $${loan.amount.toLocaleString()} successfully to ${loan.purpose}.`
+                              });
+                              setSimulatedPoolCommit(null);
+                            }, 1200);
+                          }}
+                          disabled={simulatedPoolCommit !== null}
+                          className="px-4 py-2 bg-slate-900 hover:bg-guava-orange text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer shrink-0"
+                        >
+                          {simulatedPoolCommit === loan.id ? (
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              SWEPT...
+                            </span>
+                          ) : 'Automate Funding'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            navigate('/marketplace');
+                          }}
+                          className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-slate-900 group-hover:text-white rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all cursor-pointer"
+                        >
+                          View Details
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* FINANCIAL INSTRUMENTS SECTION */}
+            {(searchTab === 'all' || searchTab === 'instruments') && FINANCIAL_INSTRUMENTS.filter(i => (i.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || (i.category || "").toLowerCase().includes(searchQuery.toLowerCase())).length > 0 && (
+              <div className="space-y-2 mt-4">
+                <div className="flex items-center gap-2 mb-2 sticky top-0 bg-white dark:bg-slate-900 py-1">
+                  <Coins className="w-4 h-4 text-slate-400" />
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Matching Cleared Instruments & Pools ({FINANCIAL_INSTRUMENTS.filter(i => (i.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || (i.category || "").toLowerCase().includes(searchQuery.toLowerCase())).length})</h4>
+                </div>
+                {FINANCIAL_INSTRUMENTS.filter(i => (i.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || (i.category || "").toLowerCase().includes(searchQuery.toLowerCase())).map((inst) => {
+                  const InstIcon = inst.id === 'inst_1' ? Globe : inst.id === 'inst_2' ? Zap : inst.id === 'inst_3' ? Activity : Coins;
+                  return (
+                    <div 
+                      key={inst.id} 
+                      className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-guava-orange/30 transition-all flex flex-col md:flex-row justify-between md:items-center gap-4 group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-guava-orange shrink-0">
+                          <InstIcon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-800 dark:text-white">{inst.name}</span>
+                            <span className="text-[8px] font-bold text-guava-green tracking-widest uppercase border border-guava-green/20 bg-guava-green/5 px-2 py-0.5 rounded">
+                              {inst.risk} Risk
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                            Type: {inst.category} • Provider: {inst.provider} • Area: {inst.market}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between md:justify-end gap-6 shrink-0">
+                        <div className="text-left md:text-right">
+                          <p className="text-sm font-black text-guava-green font-mono">{inst.apr}% APR Yield</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">24h Vol: ${(inst.volume24h / 1000000).toFixed(2)}M</p>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setSimulatedPoolCommit(inst.id);
+                            setTimeout(() => {
+                              setLiveEvents(prev => [
+                                {
+                                  id: `sim-inst-${Date.now()}`,
+                                  text: `[ROUTING] Connected to ${inst.name} (${inst.category}) with cleared parameters under SLA rule`,
+                                  timestamp: new Date().toLocaleTimeString()
+                                },
+                                ...prev.slice(0, 5)
+                              ]);
+                              setCustomFeedbackMsg({
+                                type: 'success',
+                                title: 'Clearing corridor active',
+                                desc: `Parameters successfully integrated for ${inst.name} (API link secured).`
+                              });
+                              setSimulatedPoolCommit(null);
+                            }, 1000);
+                          }}
+                          disabled={simulatedPoolCommit !== null}
+                          className="px-4 py-2 bg-slate-900 hover:bg-guava-orange hover:text-white text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer shrink-0"
+                        >
+                          {simulatedPoolCommit === inst.id ? (
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ROUTING...
+                            </span>
+                          ) : 'Authorize direct placement'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
@@ -335,7 +725,7 @@ export default function Dashboard({ user }: DashboardProps) {
                   <span className="w-2 h-2 bg-guava-orange rounded-full animate-ping" />
                   <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-guava-orange">Live Central Credit Ledger</span>
                </div>
-               <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white uppercase">Network Pulse & Digital Credit Velocity</h3>
+               <h3 className="text-xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">Network Pulse & Digital Credit Velocity</h3>
                <p className="text-xs text-slate-400 mt-1 font-medium">Real-time aggregate status of global micro-financing, local consumer BNPL, and enterprise credit lines.</p>
             </div>
             
@@ -442,7 +832,7 @@ export default function Dashboard({ user }: DashboardProps) {
                </div>
                <button 
                   onClick={() => navigate('/merchant-ledger')}
-                  className="px-5 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all shadow-sm"
+                  className="px-5 py-3 bg-white dark:bg-slate-800 border-2 border-guava-orange/20 hover:border-guava-orange text-guava-orange hover:text-white hover:bg-guava-orange rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer shadow-sm"
                >
                   Launch Client BNPL Setup
                </button>

@@ -131,7 +131,7 @@ export default function Marketplace({ user }: MarketplaceProps) {
               <div className="w-2 h-2 bg-guava-orange rounded-full animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">ACX Liquidity Terminal</span>
            </div>
-           <h2 className="text-5xl font-bold tracking-tight text-slate-900 dark:text-white">Credit Auction Board</h2>
+           <h2 className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">Credit Auction Board</h2>
            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-2">Bidding open for institutional-grade vetted credit assets.</p>
         </div>
         
@@ -377,7 +377,7 @@ export default function Marketplace({ user }: MarketplaceProps) {
                           e.stopPropagation();
                           handleCommit(loan);
                         }}
-                        className="w-full py-5 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-guava-orange transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-900/20 active:scale-95"
+                        className="w-full py-5 bg-guava-orange text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] shadow-xl shadow-guava-orange/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-3"
                       >
                         Commit Liquidity
                         <ChevronRight className="w-4 h-4" />
@@ -443,14 +443,14 @@ export default function Marketplace({ user }: MarketplaceProps) {
                             e.stopPropagation();
                             handleCommit(loan);
                           }}
-                          className="flex-1 py-5 bg-slate-900 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-guava-orange transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95"
+                          className="flex-1 py-5 bg-guava-orange text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] shadow-xl shadow-guava-orange/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-3"
                         >
                           Commit Liquidity
                           <ChevronRight className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={(e) => e.stopPropagation()}
-                          className="px-6 py-5 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 hover:border-slate-900 hover:text-slate-900 transition-all bg-white dark:bg-slate-900"
+                          className="px-6 py-5 border-2 border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 hover:border-guava-orange hover:text-guava-orange transition-all bg-white dark:bg-slate-900 cursor-pointer"
                         >
                           <Calendar className="w-4 h-4" />
                         </button>

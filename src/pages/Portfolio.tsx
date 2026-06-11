@@ -154,7 +154,7 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
               <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
                 <PieIcon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-lg font-bold tracking-tight mb-4">Risk Distribution</h3>
+              <h3 className="text-lg font-black tracking-tighter uppercase mb-4">Risk Distribution</h3>
               <div className="space-y-4">
                  <div>
                     <div className="flex justify-between text-[10px] font-black uppercase opacity-40 mb-2">

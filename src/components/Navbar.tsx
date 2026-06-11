@@ -1,14 +1,14 @@
 import { UserProfile, UserRole } from '../types';
-import { Menu, Bell, LogOut, RefreshCw } from 'lucide-react';
+import { Menu, Bell, LogOut } from 'lucide-react';
+import AcxLogo from './AcxLogo';
 
 interface NavbarProps {
   user: UserProfile;
   onMenuClick: () => void;
   onLogout: () => void;
-  onSwitchRole: (role: UserRole) => void;
 }
 
-export default function Navbar({ user, onMenuClick, onLogout, onSwitchRole }: NavbarProps) {
+export default function Navbar({ user, onMenuClick, onLogout }: NavbarProps) {
   return (
     <header className="bg-white dark:bg-[#1E293B] border-b border-[#E5E5E5] dark:border-white/5 h-16 flex items-center justify-between px-6 z-20 shrink-0 shadow-sm transition-colors">
       <div className="flex items-center gap-6">
@@ -19,40 +19,36 @@ export default function Navbar({ user, onMenuClick, onLogout, onSwitchRole }: Na
           <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
         </button>
         
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-slate-900 dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/10 border-2 border-slate-700">
-            <span className="text-white font-bold text-xs">ACX</span>
-          </div>
+        <div className="flex items-center gap-2 select-none">
+          <AcxLogo size="sm" />
           <div className="flex flex-col">
-            <span className="font-bold text-lg tracking-tighter leading-none text-slate-900 dark:text-white">ACX Terminal</span>
-            <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400">Africa Credit Exchange</span>
+            <span className="font-black text-sm tracking-tighter leading-none uppercase">
+              <span className="bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent">ACX</span> <span className="text-guava-orange font-black">Terminal</span>
+            </span>
+            <span className="text-[7px] font-black uppercase tracking-[0.3em] text-slate-400">Africa Credit Exchange</span>
           </div>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-white/5 rounded-full border border-gray-100 dark:border-white/5">
-          <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 dark:text-white/40">Role:</span>
-          <select 
-            className="text-[10px] font-bold bg-transparent border-none outline-none cursor-pointer uppercase tracking-tight dark:text-white/80"
-            value={user.role}
-            onChange={(e) => onSwitchRole(e.target.value as UserRole)}
-          >
-            {Object.values(UserRole).map(role => {
-              let label = role as string;
-              if (role === UserRole.BORROWER) label = 'Consumer (Borrower)';
-              else if (role === UserRole.LENDER) label = 'Business (Lender)';
-              else if (role === UserRole.RETAILER) label = 'Business (Retailer)';
-              else if (role === UserRole.BANK) label = 'Business (Bank)';
-              else if (role === UserRole.INVESTOR) label = 'Business (Investor)';
-              else if (role === UserRole.ADMIN) label = 'Administrator';
-              return (
-                <option key={role} value={role}>{label}</option>
-              );
-            })}
-          </select>
-          <RefreshCw className="w-3 h-3 opacity-30" />
-        </div>
+        {localStorage.getItem('acx_admin_impersonate_backup') && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 text-amber-600 dark:text-amber-400">
+            <span className="text-[9px] font-black uppercase tracking-wider">Impersonation Node Active</span>
+            <button 
+              onClick={() => {
+                const backup = localStorage.getItem('acx_admin_impersonate_backup');
+                if (backup) {
+                  localStorage.setItem('acx_sandbox_session', backup);
+                  localStorage.removeItem('acx_admin_impersonate_backup');
+                  window.location.reload();
+                }
+              }}
+              className="text-[9px] font-black uppercase bg-amber-600 hover:bg-amber-700 text-white px-2 py-0.5 rounded-lg ml-1 font-sans transition-all cursor-pointer"
+            >
+              Exit
+            </button>
+          </div>
+        )}
 
         <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full relative transition-colors">
           <Bell className="w-5 h-5 dark:text-gray-400" />

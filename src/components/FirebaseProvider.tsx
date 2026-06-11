@@ -14,12 +14,14 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile, UserRole } from '../types';
+import { compressBase64Image } from '../lib/utils';
 
 interface FirebaseContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
   login: () => Promise<void>;
+  sandboxLogin?: (mockUser: UserProfile) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
@@ -92,7 +94,17 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (registrationData.phoneCode) updates.phoneCode = registrationData.phoneCode;
           if (registrationData.languages) updates.languages = registrationData.languages;
           if (registrationData.preferredCurrencies) updates.preferredCurrencies = registrationData.preferredCurrencies;
-          if (registrationData.photoURL) updates.photoURL = registrationData.photoURL;
+          if (registrationData.photoURL) {
+            let photoUrl = registrationData.photoURL;
+            if (photoUrl.startsWith("data:image/") && photoUrl.length > 50000) {
+              try {
+                photoUrl = await compressBase64Image(photoUrl);
+              } catch (err) {
+                console.error("Failed to compress registration photo in syncProfile:", err);
+              }
+            }
+            updates.photoURL = photoUrl;
+          }
           if (registrationData.organizationDetails) updates.organizationDetails = registrationData.organizationDetails;
           
           // CRITICAL: Overwrite borrowerDetails.profile fields with the new display name 
@@ -131,6 +143,15 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         
         setProfile(currentProfile);
       } else {
+        let finalPhotoURL = registrationData?.photoURL;
+        if (finalPhotoURL && finalPhotoURL.startsWith("data:image/") && finalPhotoURL.length > 50000) {
+          try {
+            finalPhotoURL = await compressBase64Image(finalPhotoURL);
+          } catch (err) {
+            console.error("Failed to compress final photo URL in syncProfile:", err);
+          }
+        }
+
         const newProfile: UserProfile = {
           uid: currentUser.uid,
           email: currentUser.email || '',
@@ -145,7 +166,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           country: registrationData?.country,
           phoneCode: registrationData?.phoneCode,
           languages: registrationData?.languages,
-          photoURL: registrationData?.photoURL,
+          photoURL: finalPhotoURL,
           organizationDetails: registrationData?.organizationDetails,
           borrowerDetails: (preferredRole === UserRole.BORROWER || registrationData?.organizationDetails) ? {
             profile: {
@@ -176,6 +197,17 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     if (!user) {
+      const cachedSandbox = localStorage.getItem('acx_sandbox_session');
+      if (cachedSandbox) {
+        try {
+          const parsed = JSON.parse(cachedSandbox) as UserProfile;
+          setProfile(parsed);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error("Error parsing sandbox session", e);
+        }
+      }
       setProfile(null);
       setLoading(false);
       return;
@@ -205,19 +237,49 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const sandboxLogin = async (mockUser: UserProfile) => {
+    setLoading(true);
+    try {
+      localStorage.setItem('acx_sandbox_session', JSON.stringify(mockUser));
+      setProfile(mockUser);
+    } catch (error) {
+      console.error("Sandbox login failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
+      localStorage.removeItem('acx_sandbox_session');
       await signOut(auth);
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      setUser(null);
+      setProfile(null);
     }
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user || !profile) return;
+    if (!profile) return;
+    
+    // Auto-compress photoURL if too big to avoid Firestore doc limit (1MB)
+    if (updates.photoURL && updates.photoURL.startsWith("data:image/") && updates.photoURL.length > 50000) {
+      try {
+        updates.photoURL = await compressBase64Image(updates.photoURL);
+      } catch (err) {
+        console.error("Failed to compress photo in updateProfile:", err);
+      }
+    }
+
     const updatedProfile = { ...profile, ...updates };
     try {
-      await setDoc(doc(db, 'users', user.uid), updatedProfile, { merge: true });
+      if (user) {
+        await setDoc(doc(db, 'users', user.uid), updatedProfile, { merge: true });
+      } else {
+        localStorage.setItem('acx_sandbox_session', JSON.stringify(updatedProfile));
+      }
       setProfile(updatedProfile);
     } catch (error) {
       console.error("Profile update failed:", error);
@@ -225,7 +287,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   return (
-    <FirebaseContext.Provider value={{ user, profile, loading, login, logout, updateProfile }}>
+    <FirebaseContext.Provider value={{ user, profile, loading, login, sandboxLogin, logout, updateProfile }}>
       {children}
     </FirebaseContext.Provider>
   );

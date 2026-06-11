@@ -1,7 +1,6 @@
 // components/Footer.tsx
 import { Twitter, Linkedin, Mail } from 'lucide-react';
-import ACXText from '../img/ACX logoText.png';
-import ACX from '../img/ACX logo.png';
+import AcxLogo from './AcxLogo';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -11,10 +10,11 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-6 md:mb-8">
           <div className="col-span-2 md:col-span-1">
-        <img src={ACXText} alt="ACX Logo" className="h-22 " />
-            
-
-            <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-3 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AcxLogo size="sm" variant="icon" withHoverGlow={false} />
+              <span className="text-lg md:text-xl font-black tracking-tighter bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent">ACX</span>
+            </div>
+            <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-3">
               The unified credit and liquidity platform for the African continent.
             </p>
             <div className="flex items-center gap-3">
@@ -31,7 +31,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Platform</h4>
+            <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2 bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent inline-block">Platform</h4>
             <ul className="space-y-1.5">
               <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Credit Scoring</a></li>
               <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Liquidity Pools</a></li>
@@ -41,7 +41,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Resources</h4>
+            <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2 bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent inline-block">Resources</h4>
             <ul className="space-y-1.5">
               <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Documentation</a></li>
               <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">API Status</a></li>
@@ -51,7 +51,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2">Legal</h4>
+            <h4 className="text-xs md:text-sm font-black uppercase tracking-wider mb-2 bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent inline-block">Legal</h4>
             <ul className="space-y-1.5">
               <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Privacy</a></li>
               <li><a href="#" className="text-gray-400 hover:text-guava-orange text-xs md:text-sm transition-colors cursor-pointer">Terms</a></li>
@@ -61,9 +61,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-white/30">
+        <div className="pt-6 border-t border-white/30 flex flex-col items-center justify-center gap-4">
           <p className="text-gray-500 text-[11px] md:text-xs text-center">
-            &copy; {currentYear} African Credit Exchange. All rights reserved.
+            &copy; {currentYear} Africa Credit Exchange. All rights reserved.
           </p>
         </div>
       </div>

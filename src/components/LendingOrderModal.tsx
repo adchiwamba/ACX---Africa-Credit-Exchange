@@ -293,7 +293,7 @@ export default function LendingOrderModal({ isOpen, onClose, user }: LendingOrde
                   <ShieldCheck className="w-12 h-12" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-3xl font-black text-guava-dark dark:text-white italic tracking-tighter uppercase">Deployment Successful</h3>
+                  <h3 className="text-3xl font-black text-guava-dark dark:text-white tracking-tighter uppercase">Deployment Successful</h3>
                   <p className="text-gray-400 text-sm font-medium">Your lending order has been broadcasted to the global node network. Capital is now earning interest.</p>
                 </div>
 
@@ -327,7 +327,7 @@ function SectionSummary({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-center border-b border-white/10 pb-4 last:border-0 last:pb-0">
       <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{label}</span>
-      <span className="text-sm font-black italic tracking-tight">{value}</span>
+      <span className="text-sm font-black tracking-tight">{value}</span>
     </div>
   );
 }

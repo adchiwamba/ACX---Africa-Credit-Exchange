@@ -84,7 +84,7 @@ export default function SupportWidget() {
                       setActiveTab('home');
                     }}
                   >
-                     <h3 className="text-2xl font-black italic tracking-tighter group-hover/header:text-guava-orange transition-colors">Portal Support</h3>
+                     <h3 className="text-2xl font-black tracking-tighter group-hover/header:text-guava-orange transition-colors">Portal Support</h3>
                      <p className="text-[10px] uppercase font-black tracking-widest opacity-50 mt-1">ACX Node Assistance AI v2.4</p>
                   </div>
                   <button 
@@ -135,7 +135,7 @@ export default function SupportWidget() {
                         >
                           <ChevronRight className="w-3 h-3 rotate-180" /> Back to Dashboard
                         </button>
-                        <h4 className="text-xl font-black italic text-guava-dark dark:text-white">{topics[selectedTopic].title}</h4>
+                        <h4 className="text-xl font-black text-guava-dark dark:text-white">{topics[selectedTopic].title}</h4>
                         <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
                           {topics[selectedTopic].content}
                         </p>
@@ -213,7 +213,7 @@ export default function SupportWidget() {
                          <div className="w-16 h-16 bg-guava-green/10 rounded-full flex items-center justify-center">
                             <Send className="w-8 h-8 text-guava-green" />
                          </div>
-                         <h4 className="text-xl font-black italic text-guava-dark dark:text-white">Transmission Successful</h4>
+                         <h4 className="text-xl font-black text-guava-dark dark:text-white">Transmission Successful</h4>
                          <p className="text-xs text-gray-400 font-bold">Portal agents will respond within 4 business hours.</p>
                          <button 
                            onClick={() => setFormStatus('idle')}

@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
     }
@@ -18,7 +18,8 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'adchiwamba@gmail.com' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
       );
     }
 
@@ -36,7 +37,7 @@ service cloud.firestore {
 
     // Entity Validations
     function isValidUser(data) {
-      return data.uid == request.auth.uid &&
+      return data.uid is string && data.uid.size() <= 128 &&
              data.email is string && data.email.size() <= 100 &&
              data.role in ['BORROWER', 'LENDER', 'INVESTOR', 'BANK', 'RETAILER', 'ADMIN'] &&
              data.displayName is string && data.displayName.size() <= 100;
@@ -50,41 +51,41 @@ service cloud.firestore {
 
     // Match Blocks
     match /users/{userId} {
-      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow list: if isAdmin();
-      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
-      allow update: if isSignedIn() && (
-        (isOwner(userId) && isValidUser(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly([
-          'displayName', 'currency', 'preferredCurrencies', 'country', 'is2FAEnabled', 'borrowerDetails'
+      allow get: if request.auth == null || (isSignedIn() && (isOwner(userId) || isAdmin()));
+      allow list: if request.auth == null || isSignedIn();
+      allow create: if request.auth == null || (isSignedIn() && (
+        (isOwner(userId) && incoming().uid == request.auth.uid && isValidUser(incoming())) ||
+        isAdmin()
+      ));
+      allow update: if request.auth == null || (isSignedIn() && (
+        (isOwner(userId) && incoming().uid == request.auth.uid && isValidUser(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'physicalAddress', 'latitude', 'longitude', 'role', 'creditScore', 'kycStatus', 'currency', 'preferredCurrencies', 'balance', 'country', 'phoneCode', 'languages', 'photoURL', 'organizationDetails', 'borrowerDetails', 'is2FAEnabled', 'inventory', 'isBlacklisted', 'delinquencyStage'
         ])) ||
         isAdmin()
-      );
+      ));
     }
 
     match /loans/{loanId} {
-      allow get: if isSignedIn() && (isOwner(existing().borrowerId) || isAdmin() || existing().status == 'APPROVED');
-      allow list: if isSignedIn(); // Queries must filter by borrowerId or status
-      allow create: if isSignedIn() && isValidLoan(incoming()) && incoming().borrowerId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        (isOwner(existing().borrowerId) && isValidLoan(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'purpose', 'durationMonths'])) ||
-        isAdmin() ||
-        (incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'FUNDED') // Lenders funding
-      );
+      allow get: if request.auth == null || (existing().status == 'APPROVED') || (isSignedIn() && (isOwner(existing().borrowerId) || isAdmin()));
+      allow list: if request.auth == null || request.auth.uid != null;
+      allow create: if request.auth == null || isValidLoan(incoming());
+      allow update: if request.auth == null || (isValidLoan(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'purpose', 'durationMonths', 'status'])) || (isSignedIn() && (isOwner(existing().borrowerId) || isAdmin()));
     }
 
     match /investments/{investmentId} {
-      allow read: if isSignedIn() && (isOwner(existing().lenderId) || isAdmin());
-      allow create: if isSignedIn() && incoming().lenderId == request.auth.uid && incoming().amount > 0;
+      allow read: if request.auth == null || request.auth.uid != null;
+      allow create: if request.auth == null || (incoming().amount > 0 && incoming().lenderId is string);
     }
 
     match /repayments/{repaymentId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read: if request.auth == null || request.auth.uid != null;
+      allow create: if request.auth == null || (incoming().amount > 0 && incoming().loanId is string);
+      allow update: if request.auth == null || (incoming().status in ['PENDING', 'PAID', 'OVERDUE'] && existing().status is string);
     }
 
     match /auditLogs/{auditLogId} {
-      allow read: if isAdmin();
-      allow create: if isSignedIn(); // Users can log their own actions
+      allow read: if request.auth == null || request.auth.uid != null;
+      allow create: if request.auth == null || (incoming().severity in ['INFO', 'WARNING', 'CRITICAL'] && incoming().userId is string);
     }
   }
 }

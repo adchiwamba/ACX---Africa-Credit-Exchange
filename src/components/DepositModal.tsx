@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, DollarSign, ArrowRight, CreditCard, Phone, RefreshCw, Zap } from 'lucide-react';
 
@@ -9,8 +9,14 @@ interface DepositModalProps {
 }
 
 export default function DepositModal({ isOpen, onClose, onDeposit }: DepositModalProps) {
-  const [amount, setAmount] = useState('1000');
+  const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<'BANK' | 'CRYPTO' | 'WIRE' | 'MOBILE' | 'RESONANCE'>('BANK');
+
+  useEffect(() => {
+    if (isOpen) {
+      setAmount('');
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +55,7 @@ export default function DepositModal({ isOpen, onClose, onDeposit }: DepositModa
                   <DollarSign className="w-5 h-5 text-guava-orange" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black tracking-tighter italic dark:text-white uppercase">Increase Liquidity</h3>
+                  <h3 className="text-2xl font-black tracking-tighter dark:text-white uppercase">Increase Liquidity</h3>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Portal Node Deposit</p>
                 </div>
               </div>

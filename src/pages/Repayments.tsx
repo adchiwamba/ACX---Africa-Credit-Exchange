@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, AuditEventType, LoanStatus, LoanRequest } from '../types';
+import { UserProfile, AuditEventType, LoanStatus, LoanRequest, Repayment } from '../types';
 import { auditService } from '../lib/audit';
 import { firestoreService } from '../services/firestoreService';
 import { useFirebase } from '../components/FirebaseProvider';
+import { useNotify } from '../lib/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar, 
@@ -15,7 +16,8 @@ import {
   RefreshCw,
   X,
   Lock,
-  Wallet
+  Wallet,
+  Check
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -30,24 +32,121 @@ interface RepaymentsProps {
 
 export default function Repayments({ user }: RepaymentsProps) {
     const { updateProfile } = useFirebase();
+    const { notify } = useNotify();
     const [loans, setLoans] = useState<LoanRequest[]>([]);
+    const [repayments, setRepayments] = useState<Repayment[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingRepayments, setLoadingRepayments] = useState(false);
     const [isSettling, setIsSettling] = useState<string | null>(null);
+    const [isPayingInstallment, setIsPayingInstallment] = useState<string | null>(null);
     const [showConfirmModal, setShowConfirmModal] = useState<{loanId: string, amount: number, asset: string} | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
 
     useEffect(() => {
       const fetchData = async () => {
         try {
           const myLoans = await firestoreService.getMyLoans(user.uid);
-          setLoans(myLoans.filter(l => l.status === LoanStatus.FUNDED));
+          const activeLoans = myLoans.filter(l => [LoanStatus.FUNDED, LoanStatus.DELINQUENT].includes(l.status));
+          setLoans(activeLoans);
+
+          setLoadingRepayments(true);
+          let allReps: Repayment[] = [];
+
+          for (const loan of activeLoans) {
+            let reps = await firestoreService.getRepayments(loan.id);
+            
+            // Seed 3 repayments if none exist in firestore for this funded loan
+            if (!reps || reps.length === 0) {
+              const r1: Omit<Repayment, 'id'> = {
+                loanId: loan.id,
+                amount: Math.round(loan.amount / 3),
+                dueDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                paidDate: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'PAID'
+              };
+              const r2: Omit<Repayment, 'id'> = {
+                loanId: loan.id,
+                amount: Math.round(loan.amount / 3),
+                dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // Past due date to trigger OVERDUE check
+                status: 'PENDING'
+              };
+              const r3: Omit<Repayment, 'id'> = {
+                loanId: loan.id,
+                amount: Math.round(loan.amount / 3),
+                dueDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'PENDING'
+              };
+
+              const id1 = await firestoreService.createRepayment(r1);
+              const id2 = await firestoreService.createRepayment(r2);
+              const id3 = await firestoreService.createRepayment(r3);
+
+              reps = [
+                { id: id1, ...r1 },
+                { id: id2, ...r2 },
+                { id: id3, ...r3 }
+              ];
+            }
+
+            allReps = [...allReps, ...reps];
+          }
+
+          // Process status change to 'OVERDUE'
+          const updatedReps = [...allReps];
+          
+          for (let i = 0; i < updatedReps.length; i++) {
+            const rep = updatedReps[i];
+            const isPastDue = new Date(rep.dueDate) < new Date();
+            
+            if (rep.status === 'PENDING' && isPastDue) {
+              // 1. Update status in firestore
+              await firestoreService.updateRepayment(rep.id, { status: 'OVERDUE' });
+              
+              const associatedLoan = activeLoans.find(l => l.id === rep.loanId);
+              const loanPurpose = associatedLoan ? associatedLoan.purpose : 'Active Portal Loan';
+              
+              // 2. Alert the user via NotificationProvider
+              notify(
+                'error', 
+                'Repayment Status: OVERDUE', 
+                `Installment of $${rep.amount.toLocaleString()} for "${loanPurpose}" is now OVERDUE. Please clear this immediately to protect your resonance credit profile.`
+              );
+
+              // 3. Log Audit Trail
+              await auditService.log(
+                user,
+                AuditEventType.REPAYMENT_MADE,
+                `Repayment installment ${rep.id} of $${rep.amount} marked OVERDUE due to maturity breach.`,
+                'CRITICAL',
+                { loanId: rep.loanId, repaymentId: rep.id, amount: rep.amount }
+              );
+
+              // 4. Set loan status to DELINQUENT if it wasn't already
+              if (associatedLoan && associatedLoan.status === LoanStatus.FUNDED) {
+                await firestoreService.updateLoan(associatedLoan.id, { status: LoanStatus.DELINQUENT });
+                
+                // Slightly lower borrowing score snap
+                await updateProfile({
+                  creditScore: Math.max(300, user.creditScore - 25)
+                });
+              }
+
+              updatedReps[i] = { ...rep, status: 'OVERDUE' };
+            }
+          }
+
+          setRepayments(updatedReps);
         } catch (error) {
           console.error("Failed to fetch repayments data:", error);
         } finally {
           setLoading(false);
+          setLoadingRepayments(false);
         }
       };
       fetchData();
-    }, [user.uid]);
+    }, [user.uid, refreshTrigger]);
 
     const totalOutstanding = loans.reduce((sum, l) => sum + l.amount, 0);
 
@@ -99,6 +198,73 @@ export default function Repayments({ user }: RepaymentsProps) {
       }
     };
 
+    const handlePayInstallment = async (rep: Repayment) => {
+      if (user.balance < rep.amount) {
+        notify('error', 'Insufficient Wallet Balance', `Your balance is $${user.balance.toLocaleString()} but installment is $${rep.amount.toLocaleString()}. Please deposit more funds first.`);
+        return;
+      }
+
+      setIsPayingInstallment(rep.id);
+      try {
+        await updateProfile({
+          balance: user.balance - rep.amount,
+          creditScore: Math.min(850, user.creditScore + 15)
+        });
+
+        await firestoreService.updateRepayment(rep.id, {
+          status: 'PAID',
+          paidDate: new Date().toISOString()
+        });
+
+        await auditService.log(
+          user,
+          AuditEventType.REPAYMENT_MADE,
+          `Paid scheduled installment of $${rep.amount} on-time.`,
+          'INFO',
+          { loanId: rep.loanId, repaymentId: rep.id, amount: rep.amount }
+        );
+
+        notify('success', 'Installment Settlement Complete', `Paid $${rep.amount.toLocaleString()} installment successfully.`);
+
+        // If all scheduled repayments for this loan are now PAID, mark the parent loan as COMPLETED
+        const associatedLoan = loans.find(l => l.id === rep.loanId);
+        if (associatedLoan) {
+          const reps = await firestoreService.getRepayments(associatedLoan.id);
+          const unpaidExists = reps.some(r => r.id !== rep.id && r.status !== 'PAID');
+          if (!unpaidExists) {
+            await firestoreService.updateLoan(associatedLoan.id, { status: LoanStatus.COMPLETED });
+            notify('success', 'Loan Obligations Resolved', `All installments completed. Loan has been fully settled!`);
+          }
+        }
+
+        triggerRefresh();
+      } catch (err) {
+        console.error("Installment payment failed:", err);
+        notify('error', 'Payment Failure', 'Installment payment process aborted.');
+      } finally {
+        setIsPayingInstallment(null);
+      }
+    };
+
+    const simulateOverdue = async (repaymentId: string) => {
+      try {
+        const targetRep = repayments.find(r => r.id === repaymentId);
+        if (!targetRep) return;
+        
+        const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+        
+        await firestoreService.updateRepayment(repaymentId, { 
+          dueDate: fiveDaysAgo,
+          status: 'PENDING'
+        });
+
+        notify('info', 'Simulation Initiated', 'Backdated dueDate of installment to trigger OVERDUE status change.');
+        triggerRefresh();
+      } catch (err) {
+        console.error("Failed to simulate overdue status change:", err);
+      }
+    };
+
     if (loading) {
       return (
         <div className="h-[400px] flex items-center justify-center">
@@ -115,7 +281,7 @@ export default function Repayments({ user }: RepaymentsProps) {
               <div className="w-2 h-2 bg-guava-orange rounded-full animate-pulse" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">ACX Settlement Engine</span>
            </div>
-           <h2 className="text-5xl font-black tracking-tighter italic text-guava-dark dark:text-white">Repayment Terminal</h2>
+           <h2 className="text-5xl font-black tracking-tighter text-guava-dark dark:text-white">Repayment Terminal</h2>
            <p className="text-gray-400 dark:text-gray-500 text-sm font-medium mt-2">Manage your portal obligations and optimize your credit resonance.</p>
         </div>
 
@@ -148,7 +314,7 @@ export default function Repayments({ user }: RepaymentsProps) {
               <div className="p-8 border-b border-gray-50 dark:border-white/5 flex justify-between items-center">
                  <div className="flex items-center gap-3">
                    <Calendar className="w-5 h-5 text-guava-orange" />
-                   <h3 className="text-xl font-black text-guava-dark dark:text-white italic">Active Obligations</h3>
+                   <h3 className="text-xl font-black text-guava-dark dark:text-white">Active Obligations</h3>
                  </div>
                  <button className="text-[10px] font-black uppercase tracking-widest text-guava-orange hover:underline">Sync Ledger</button>
               </div>
@@ -216,7 +382,7 @@ export default function Repayments({ user }: RepaymentsProps) {
                        <Zap className="w-8 h-8 text-guava-orange" />
                     </div>
                     <div>
-                       <h4 className="text-xl font-black text-guava-dark italic">Optimization Bonus</h4>
+                       <h4 className="text-xl font-black text-guava-dark">Optimization Bonus</h4>
                        <p className="text-gray-500 text-sm max-w-md">Settle obligations early from your portal wallet to increase your ACX resonance score by up to 12%.</p>
                     </div>
                  </div>
@@ -226,12 +392,127 @@ export default function Repayments({ user }: RepaymentsProps) {
               </div>
               <div className="absolute -right-20 -top-20 w-64 h-64 bg-guava-orange/5 rounded-full blur-3xl" />
            </div>
+
+           {/* Repayment Installment Schedule */}
+           <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
+              <div className="p-8 border-b border-gray-50 dark:border-white/5 flex justify-between items-center">
+                 <div className="flex items-center gap-3">
+                   <Calendar className="w-5 h-5 text-guava-orange" />
+                   <h3 className="text-xl font-black text-guava-dark dark:text-white">Installment Ledger Schedule</h3>
+                 </div>
+                 <span className="text-[9px] font-mono bg-guava-orange/10 text-guava-orange px-3 py-1 rounded-full font-black">
+                   PERSISTENT CONTRACT AMORTIZATION
+                 </span>
+              </div>
+              <div className="divide-y divide-gray-50 dark:divide-white/5 font-sans">
+                {loadingRepayments ? (
+                  <div className="p-12 text-center">
+                     <RefreshCw className="w-6 h-6 text-guava-orange animate-spin mx-auto" />
+                     <p className="text-xs text-gray-400 mt-2">Syncing amortization channels...</p>
+                  </div>
+                ) : repayments.length === 0 ? (
+                  <div className="p-16 text-center space-y-3">
+                     <Clock className="w-10 h-10 text-gray-300 mx-auto opacity-30" />
+                     <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No scheduled installments active</p>
+                  </div>
+                ) : repayments.map((rep) => {
+                  const associatedLoan = loans.find(l => l.id === rep.loanId);
+                  const isOverdue = rep.status === 'OVERDUE';
+                  const isPaid = rep.status === 'PAID';
+                  const isPending = rep.status === 'PENDING';
+
+                  return (
+                    <div key={rep.id} className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50/30 dark:hover:bg-white/5 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <div className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm",
+                          isPaid ? "bg-guava-green/10 text-guava-green" :
+                          isOverdue ? "bg-red-500/10 text-red-500 animate-pulse" : "bg-guava-orange/10 text-guava-orange"
+                        )}>
+                          {isPaid ? <Check className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-black text-guava-dark dark:text-white font-mono">
+                              Installment #{rep.id.slice(-5)}
+                            </span>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                              isPaid ? "bg-guava-green/15 text-guava-green" :
+                              isOverdue ? "bg-red-500/15 text-red-500" : "bg-amber-500/15 text-amber-500"
+                            )}>
+                              {rep.status}
+                            </span>
+                          </div>
+                          
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-medium">
+                            Loan: {associatedLoan?.purpose || `POS Loan #${rep.loanId.slice(-6)}`}
+                          </p>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold mt-1">
+                            {isPaid ? (
+                              <span className="text-guava-green">Settled on {new Date(rep.paidDate || '').toLocaleDateString()}</span>
+                            ) : (
+                              <span>Due date: {new Date(rep.dueDate).toLocaleDateString()}</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-gray-100 dark:border-white/5">
+                        <div className="text-left md:text-right">
+                          <p className="text-lg font-black font-mono text-guava-dark dark:text-white">
+                            ${rep.amount.toLocaleString()}
+                          </p>
+                          <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500">Amortized Share</p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          {isPending && (
+                            <button
+                              onClick={() => simulateOverdue(rep.id)}
+                              className="px-3 py-2 border border-dashed border-red-500/30 text-red-500 hover:bg-red-500/5 hover:border-red-500/60 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                              title="Push dueDate into the past to trigger OVERDUE status and fire real-time notification"
+                            >
+                              Simulate Overdue
+                            </button>
+                          )}
+
+                          {!isPaid ? (
+                            <button
+                              onClick={() => handlePayInstallment(rep)}
+                              disabled={isPayingInstallment === rep.id}
+                              className={cn(
+                                "px-5 py-2.5 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 cursor-pointer",
+                                isOverdue 
+                                  ? "bg-red-600 hover:bg-red-500 shadow-red-500/10" 
+                                  : "bg-guava-orange hover:bg-guava-orange/90 shadow-guava-orange/10",
+                                isPayingInstallment === rep.id ? "opacity-50 cursor-not-allowed" : ""
+                              )}
+                            >
+                              {isPayingInstallment === rep.id && (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              )}
+                              Settle Part
+                            </button>
+                          ) : (
+                            <div className="px-4 py-2 bg-guava-green/5 border border-guava-green/15 text-guava-green rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Paid
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+           </div>
         </div>
 
         {/* Sidebar Info */}
         <div className="space-y-8">
            <div className="bg-guava-orange rounded-[48px] p-8 text-white relative overflow-hidden shadow-2xl">
-              <h3 className="text-xl font-black italic mb-6">Settlement Wallet</h3>
+              <h3 className="text-xl font-black mb-6">Settlement Wallet</h3>
               <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-6">
                  <div className="flex justify-between items-center text-xs font-bold text-white/40">
                    <span>PORTAL NODE BALANCE</span>
@@ -262,7 +543,7 @@ export default function Repayments({ user }: RepaymentsProps) {
            <div className="bg-white dark:bg-[#1E293B] rounded-[40px] border border-gray-100 dark:border-white/5 p-8 shadow-sm transition-colors">
               <div className="flex items-center gap-3 mb-6">
                 <History className="w-5 h-5 text-gray-300 dark:text-gray-600" />
-                <h3 className="text-lg font-black text-guava-dark dark:text-white italic">Recent Ledger</h3>
+                <h3 className="text-lg font-black text-guava-dark dark:text-white">Recent Ledger</h3>
               </div>
               <div className="space-y-6">
                  {user.balance > 0 && (
@@ -316,7 +597,7 @@ export default function Repayments({ user }: RepaymentsProps) {
                   <div className="w-16 h-16 bg-guava-orange/10 rounded-[28px] flex items-center justify-center mb-6">
                     <CreditCard className="w-8 h-8 text-guava-orange" />
                   </div>
-                  <h3 className="text-3xl font-black italic tracking-tighter dark:text-white">Confirm Settlement</h3>
+                  <h3 className="text-3xl font-black tracking-tighter dark:text-white">Confirm Settlement</h3>
                   <p className="text-gray-400 text-sm font-medium mt-1">Authorize portal obligation settlement using your current wallet balance.</p>
                </div>
 

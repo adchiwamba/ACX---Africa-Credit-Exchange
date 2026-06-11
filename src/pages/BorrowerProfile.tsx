@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { UserProfile, UserRole, AuditEventType, CreditScoreResult, BorrowerProfileData, VerificationResult } from '../types';
+import { BusinessLocationMap } from '../components/BusinessLocationMap';
 import { calculateCreditScore } from '../lib/gemini';
 import { auditService } from '../lib/audit';
 import { useFirebase } from '../components/FirebaseProvider';
@@ -36,7 +37,8 @@ import {
   X,
   Save,
   Loader2,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { 
@@ -125,24 +127,29 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const isInitialized = useRef(false);
 
+  // Custom modals/alerts state to bypass blocked native window.confirm/alert in sandboxed iframe
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
+  const [showResetSuccess, setShowResetSuccess] = useState(false);
+  const [customAlertMessage, setCustomAlertMessage] = useState<string | null>(null);
+
   const defaultProfile = useMemo(() => ({
     // 1. Identity
     firstName: user.displayName.split(' ')[0] || '',
     lastName: user.displayName.split(' ')[1] || '',
-    dob: '1990-01-01',
+    dob: '',
     gender: 'Other',
     idNumber: '',
     taxNumber: '',
     nationality: user.country || '',
     maritalStatus: 'Single',
     address: '',
-    gpsData: '26.2041° S, 28.0473° E',
+    gpsData: '',
     phone: '',
     email: user.email,
     
     // 2. Employment
     employer: '',
-    industry: 'Technology',
+    industry: '',
     employmentStatus: 'Permanent',
     jobTitle: '',
     yearsEmployed: 0,
@@ -156,13 +163,13 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
     monthlyExpenses: 0,
     debtRatio: 0,
     savingsBehavior: 'Establishing',
-    insuranceCoverage: 'None',
+    insuranceCoverage: '',
     
     // 4. Alternative
     mobileMoneyUsage: 'Low',
     utilityPaymentHistory: 'None',
-    eCommerceActivity: 'None',
-    deviceConsistency: 'Establishing',
+    eCommerceActivity: '',
+    deviceConsistency: '',
     
     // 5. Business (SME)
     isSME: false,
@@ -244,6 +251,71 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
       isInitialized.current = true;
     }
   }, [user.borrowerDetails, defaultProfile]);
+
+  const clearNodeCache = async () => {
+    try {
+      setIsSaving(true);
+      // Clear local storage keys starting with acx_
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("acx_")) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Reset local react state to defaults
+      setProfile(defaultProfile);
+      setUploads({
+        nationalId: false,
+        passport: false,
+        utilityBill: false,
+        payslip: false,
+        bankStatement: false,
+        selfie: false
+      });
+      setScoreResult(null);
+      setVerificationResults({
+        nationalId: { status: 'NONE' },
+        passport: { status: 'NONE' },
+        utilityBill: { status: 'NONE' },
+        payslip: { status: 'NONE' },
+        bankStatement: { status: 'NONE' },
+        selfie: { status: 'NONE' }
+      });
+      setStep(1);
+
+      // Update profile in Firestore database
+      const emptyProfile: Partial<UserProfile> = {
+        borrowerDetails: {
+          profile: defaultProfile,
+          uploads: {
+            nationalId: false,
+            passport: false,
+            utilityBill: false,
+            payslip: false,
+            bankStatement: false,
+            selfie: false
+          },
+          scoreResult: null,
+          verificationResults: {
+            nationalId: { status: 'NONE' },
+            passport: { status: 'NONE' },
+            utilityBill: { status: 'NONE' },
+            payslip: { status: 'NONE' },
+            bankStatement: { status: 'NONE' },
+            selfie: { status: 'NONE' }
+          },
+          lastUpdated: new Date().toISOString()
+        }
+      };
+      await updateProfile(emptyProfile);
+      setShowConfirmReset(false);
+      setShowResetSuccess(true);
+    } catch (error) {
+      console.error("Error resetting profile:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -502,7 +574,7 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
 
   const handleCalculateScore = async () => {
     if (completeness < 40) {
-      alert("Please complete more of your profile (at least 40%) to generate a high-trust rating.");
+      setCustomAlertMessage("Please complete more of your profile (at least 40%) to generate a high-trust rating.");
       return;
     }
     setIsScoring(true);
@@ -686,10 +758,10 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
         doc.text('Africa Credit Exchange High-Trust Network | End-to-End Encrypted', 190, 284, { align: 'right' });
 
         doc.save(`ACX_Financial_Pass_${profile.lastName}.pdf`);
-        alert(`Financial Passport downloaded as PDF. A notification has been sent to ${user.email}`);
+        setCustomAlertMessage(`Financial Passport downloaded as PDF. A notification has been sent to ${user.email}`);
       } catch (err) {
         console.error('PDF generation failed:', err);
-        alert('Could not generate PDF. Please try again.');
+        setCustomAlertMessage('Could not generate PDF. Please try again.');
       }
     }, 2000);
   };
@@ -787,7 +859,7 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
                 </div>
               )}
             </div>
-            <h2 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white uppercase">{user.displayName}</h2>
+            <h2 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">{user.displayName}</h2>
             {user.is2FAEnabled && (
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-blue-500/10 text-blue-600 rounded-full border border-blue-500/20">
                 <Lock className="w-4 h-4" />
@@ -814,6 +886,15 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
             )}
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Building your portable global credit reputation.</p>
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={() => setShowConfirmReset(true)}
+              className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-guava-orange hover:border-guava-orange transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Clear passport fields & cache
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 pr-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
@@ -954,6 +1035,39 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
                           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
                              <MapPin className="w-4 h-4 text-gray-300" />
                              <input className="w-full text-lg font-bold outline-none" value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} placeholder="Full physical address" />
+                           </div>
+                        </div>
+
+                        {/* Interactive Business Location Map pinning */}
+                        <div className="md:col-span-2">
+                           <BusinessLocationMap
+                              physicalAddress={profile.address}
+                              latitude={(() => {
+                                 const parts = (profile.gpsData || '').split(',');
+                                 if (parts.length === 2) {
+                                    const lat = parseFloat(parts[0].trim());
+                                    return isNaN(lat) ? undefined : lat;
+                                 }
+                                 return undefined;
+                              })()}
+                              longitude={(() => {
+                                 const parts = (profile.gpsData || '').split(',');
+                                 if (parts.length === 2) {
+                                    const lng = parseFloat(parts[1].trim());
+                                    return isNaN(lng) ? undefined : lng;
+                                 }
+                                 return undefined;
+                              })()}
+                              onLocationSelected={(lat, lng) => {
+                                 setProfile({
+                                    ...profile,
+                                    gpsData: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+                                 });
+                              }}
+                              primaryColor="#22c55e"
+                           />
+                        </div>
+                        <div className="hidden"><div>
                           </div>
                        </div>
                        <Field label="Portal Geolocation (GPS)" value={profile.gpsData} className="text-guava-green" />
@@ -1080,6 +1194,13 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
                        <div className="p-12 border-2 border-dashed border-gray-100 rounded-[32px] text-center">
                           <Building2 className="w-12 h-12 text-gray-200 mx-auto mb-4" />
                           <p className="text-xs font-bold text-gray-400">Currently profiling as an individual. <br/> Enable SME mode to access business liquidity.</p>
+                           <button
+                             id="create-business-profile-btn"
+                             onClick={() => setProfile({...profile, isSME: true})}
+                             className="px-6 py-3 bg-guava-orange hover:bg-guava-orange/90 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg active:scale-95 inline-flex items-center gap-2 mt-4"
+                           >
+                             Create Business Profile
+                           </button>
                        </div>
                      )}
                      <SaveProgressButton />
@@ -1253,7 +1374,7 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
                           <CreditGauge score={scoreResult?.score || 550} />
                           
                           <div className="flex flex-col items-center mt-4">
-                             <div className={cn("text-5xl font-black italic mb-2", getRatingLabel(scoreResult?.score || 0).color)}>
+                             <div className={cn("text-5xl font-black mb-2", getRatingLabel(scoreResult?.score || 0).color)}>
                                {getRatingLabel(scoreResult?.score || 0).label}
                              </div>
                              <div className="inline-flex items-center gap-2 px-4 py-2 bg-guava-dark text-white rounded-xl text-[10px] font-black uppercase tracking-widest mb-6">
@@ -1376,6 +1497,75 @@ export default function BorrowerProfile({ user }: BorrowerProfileProps) {
            </AnimatePresence>
         </div>
       </div>
+
+      {/* Custom Confirmation Modals / Dialogs to bypass Iframe-blocked native confirm/alerts */}
+      {showConfirmReset && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] p-8 shadow-2xl relative animate-in scale-in duration-300">
+            <h4 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white mb-2 font-sans">Reset Financial Passport?</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-sans">
+              Are you sure you want to clear your passport data and cached fields? This will reset your progress to a clean slate.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowConfirmReset(false)}
+                className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-[#1A1A1A] dark:text-white border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl transition-all cursor-pointer font-sans select-none"
+              >
+                No, Keep it
+              </button>
+              <button
+                onClick={clearNodeCache}
+                className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-white rounded-2xl transition-all cursor-pointer shadow-lg shadow-red-500/10 font-sans select-none bg-[#F36D38] hover:bg-[#E25C27]"
+              >
+                Yes, Clear Slate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResetSuccess && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] p-8 shadow-2xl relative text-center animate-in scale-in duration-300">
+            <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <h4 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white mb-2 font-sans">Cache Cleared</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-sans">
+              Your form and Financial Passport settings have been reset successfully.
+            </p>
+            <button
+               onClick={() => {
+                 setShowResetSuccess(false);
+                 window.location.reload();
+               }}
+               className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-white bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-2xl transition-all cursor-pointer font-sans select-none"
+            >
+              OK, Reload Now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {customAlertMessage && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] p-8 shadow-2xl relative text-center animate-in scale-in duration-300">
+            <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h4 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white mb-2 font-sans">ACX Security Protocol</h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6 font-sans">
+              {customAlertMessage}
+            </p>
+            <button
+              onClick={() => setCustomAlertMessage(null)}
+              className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-white bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 rounded-2xl transition-all cursor-pointer font-sans select-none"
+            >
+              Acknowledge
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

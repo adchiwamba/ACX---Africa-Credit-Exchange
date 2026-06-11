@@ -12,7 +12,8 @@ import {
   PlusCircle,
   User,
   Ban,
-  Zap
+  Zap,
+  Database
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -41,8 +42,9 @@ export default function Sidebar({ isOpen, user, onClose, onDeposit }: SidebarPro
     { icon: Briefcase, label: 'Merchant Cabinet', path: '/merchant-ledger', roles: [UserRole.RETAILER] },
     { icon: CreditCard, label: 'Repayments', path: '/repayments', roles: [UserRole.BORROWER] },
     { icon: ShieldCheck, label: 'Admin Terminal', path: '/admin', roles: [UserRole.ADMIN] },
+    { icon: Database, label: 'Audit Trail', path: '/admin-audit', roles: [UserRole.ADMIN] },
     { icon: Ban, label: 'Blacklist', path: '/blacklist', roles: [UserRole.ADMIN, UserRole.LENDER, UserRole.INVESTOR, UserRole.BANK] },
-    { icon: FileText, label: 'Financial Intel', path: '/reports' },
+    { icon: FileText, label: 'Financial Intel', path: '/reports', roles: [UserRole.ADMIN, UserRole.LENDER, UserRole.INVESTOR, UserRole.BANK] },
     { icon: Settings, label: 'System Config', path: '/settings' },
   ];
 
@@ -102,28 +104,30 @@ export default function Sidebar({ isOpen, user, onClose, onDeposit }: SidebarPro
           ))}
         </nav>
 
-        <div className="p-4 mt-auto">
-          <div className="bg-gray-50/50 dark:bg-[#1E293B] rounded-2xl p-5 text-gray-900 dark:text-white overflow-hidden relative group border border-gray-100 dark:border-white/5">
-            <div className="relative z-10 transition-opacity duration-300" style={{ opacity: isOpen ? 1 : 0 }}>
-              <div className="flex justify-between items-start mb-1">
-                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-white/30">Total Assets</p>
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+        {user.role !== UserRole.ADMIN && (
+          <div className="p-4 mt-auto">
+            <div className="bg-gray-50/50 dark:bg-[#1E293B] rounded-2xl p-5 text-gray-900 dark:text-white overflow-hidden relative group border border-gray-100 dark:border-white/5">
+              <div className="relative z-10 transition-opacity duration-300" style={{ opacity: isOpen ? 1 : 0 }}>
+                <div className="flex justify-between items-start mb-1">
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-white/30">Total Assets</p>
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                </div>
+                <p className="text-2xl font-bold font-mono tracking-tighter transition-colors text-guava-dark dark:text-white">${user.balance.toLocaleString()}</p>
+                <button 
+                  onClick={onDeposit}
+                  className="mt-4 w-full py-2.5 bg-white dark:bg-white/5 text-gray-400 dark:text-white/70 rounded-xl text-[10px] uppercase tracking-widest font-black hover:bg-guava-orange hover:text-white transition-all border border-gray-100 dark:border-white/10"
+                >
+                  Deposit
+                </button>
               </div>
-              <p className="text-2xl font-bold font-mono tracking-tighter transition-colors text-guava-dark dark:text-white">${user.balance.toLocaleString()}</p>
-              <button 
-                onClick={onDeposit}
-                className="mt-4 w-full py-2.5 bg-white dark:bg-white/5 text-gray-400 dark:text-white/70 rounded-xl text-[10px] uppercase tracking-widest font-black hover:bg-guava-orange hover:text-white transition-all border border-gray-100 dark:border-white/10"
-              >
-                Deposit
-              </button>
+              {!isOpen && (
+                <div className="flex justify-center">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                </div>
+              )}
             </div>
-            {!isOpen && (
-              <div className="flex justify-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              </div>
-            )}
           </div>
-        </div>
+        )}
       </aside>
     </>
   );

@@ -184,7 +184,7 @@ export default function BlacklistManager({ user }: BlacklistManagerProps) {
               <ShieldAlert className="w-5 h-5 text-guava-orange" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-guava-orange">Security Intelligence</span>
            </div>
-           <h2 className="text-4xl font-black tracking-tighter text-guava-dark dark:text-white italic">Blacklist Terminal</h2>
+           <h2 className="text-4xl font-black tracking-tighter text-guava-dark dark:text-white">Blacklist Terminal</h2>
            <p className="text-gray-400 dark:text-gray-500 text-sm font-medium mt-1">Shared risk intelligence and default management node.</p>
         </div>
 
@@ -218,7 +218,7 @@ export default function BlacklistManager({ user }: BlacklistManagerProps) {
                </div>
                <span className="text-[10px] font-black text-gray-400">Total Blacklisted</span>
             </div>
-            <p className="text-3xl font-black italic dark:text-white">{MOCK_BLACKLIST.length}</p>
+            <p className="text-3xl font-black dark:text-white">{MOCK_BLACKLIST.length}</p>
             <div className="flex items-center gap-1 mt-1 text-[10px] text-red-600 font-bold">
                <Activity className="w-3 h-3" />
                Critical Network Guard
@@ -232,7 +232,7 @@ export default function BlacklistManager({ user }: BlacklistManagerProps) {
                </div>
                <span className="text-[10px] font-black text-gray-400">Pending Actions</span>
             </div>
-            <p className="text-3xl font-black italic dark:text-white">12</p>
+            <p className="text-3xl font-black dark:text-white">12</p>
             <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600 font-bold">
                <ChevronRight className="w-3 h-3" />
                Warnings Awaiting Response
@@ -284,7 +284,7 @@ export default function BlacklistManager({ user }: BlacklistManagerProps) {
                                <Ban className="w-6 h-6" />
                             </div>
                             <div>
-                               <h3 className="text-xl font-black italic text-guava-dark dark:text-white">{record.borrowerName}</h3>
+                               <h3 className="text-xl font-black text-guava-dark dark:text-white">{record.borrowerName}</h3>
                                <p className="text-[10px] text-gray-400 font-bold tracking-widest uppercase">Entity UID: {record.borrowerId}</p>
                             </div>
                          </div>
@@ -331,7 +331,7 @@ export default function BlacklistManager({ user }: BlacklistManagerProps) {
       ) : (
         <div className="bg-white dark:bg-[#1E293B] rounded-[48px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
           <div className="p-10 border-b border-gray-50 dark:border-white/5">
-              <h3 className="text-2xl font-black text-guava-dark dark:text-white italic">Active Defaulters</h3>
+              <h3 className="text-2xl font-black text-guava-dark dark:text-white">Active Defaulters</h3>
               <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 dark:text-gray-500 mt-1">Review liquidity delays and escalate via portal warnings</p>
           </div>
 
@@ -351,7 +351,7 @@ export default function BlacklistManager({ user }: BlacklistManagerProps) {
                    {MOCK_DEFAULTERS.map((def) => (
                       <tr key={def.id} className="group hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
                          <td className="px-10 py-6">
-                            <p className="text-sm font-black text-guava-dark dark:text-white font-serif italic">{def.name}</p>
+                            <p className="text-sm font-black text-guava-dark dark:text-white">{def.name}</p>
                          </td>
                          <td className="py-6">
                             <span className="text-xs font-bold text-gray-400">{def.loanId}</span>
@@ -444,7 +444,7 @@ export default function BlacklistManager({ user }: BlacklistManagerProps) {
                </button>
 
                <div className="p-12">
-                  <h3 className="text-3xl font-black tracking-tighter italic mb-8 dark:text-white">Propose Sanction</h3>
+                  <h3 className="text-3xl font-black tracking-tighter mb-8 dark:text-white">Propose Sanction</h3>
                   
                   <div className="space-y-6">
                     <div className="space-y-2">
