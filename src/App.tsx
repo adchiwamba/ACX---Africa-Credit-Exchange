@@ -12,7 +12,6 @@ import Sidebar from './components/Sidebar';
 import SupportWidget from './components/SupportWidget';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
-import Marketplace from './pages/Marketplace';
 import LoanApplication from './pages/LoanApplication';
 import Portfolio from './pages/Portfolio';
 import AdminPanel from './pages/AdminPanel';
@@ -209,7 +208,6 @@ function AuthenticatedApp({
             <Routes>
               <Route path="/" element={<Dashboard key={user.uid} user={user} />} />
               <Route path="/dashboard" element={<Dashboard key={user.uid} user={user} />} />
-              <Route path="/marketplace" element={<Marketplace user={user} />} />
               <Route path="/apply" element={<LoanApplication user={user} />} />
               <Route path="/portfolio" element={<Portfolio user={user} onDeposit={onDeposit} />} />
               <Route path="/profile" element={<BorrowerProfile key={user.uid} user={user} />} />
