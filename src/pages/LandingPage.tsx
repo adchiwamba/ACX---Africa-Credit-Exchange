@@ -151,6 +151,15 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
   };
 
   useEffect(() => {
+    if (!showAuthModal) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showAuthModal]);
+
+  useEffect(() => {
     if (!showAuthModal) {
       setLoginEmail("");
       setLoginPassword("");
@@ -430,301 +439,293 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-white flex flex-col md:flex-row overflow-y-auto md:overflow-hidden h-screen w-screen"
+            style={{ height: "100dvh" }}
+            className="fixed inset-0 z-50 grid w-screen overflow-hidden bg-white grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[42%_minmax(0,1fr)] lg:grid-cols-[38%_minmax(0,1fr)]"
           >
-            {/* Left visual column - Majestic high-fidelity vertical finance architecture for ACX */}
-            <div className="relative w-full md:w-1/2 lg:w-[52%] h-[400px] md:h-full bg-slate-950 flex flex-col p-6 md:p-10 text-white md:overflow-hidden overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden shrink-0">
-              <div className="absolute inset-0 z-0 select-none pointer-events-none">
+            {/* Left visual column — premium ACX brand panel */}
+            <div className="relative min-h-0 max-h-[38vh] md:max-h-none md:h-full bg-guava-dark flex flex-col p-6 md:p-10 text-white overflow-hidden">
+              <div className="absolute inset-0 z-0 select-none pointer-events-none overflow-hidden">
                 <img
                   src="/src/assets/images/acx_sovereign_nodes_1780667190940.png"
-                  alt="ACX Sovereign Credit Explorer"
-                  className="w-full h-full object-cover scale-105 opacity-25 filter blur-sm transition-all duration-700"
+                  alt="Africa Credit Exchange"
+                  className="w-full h-full object-cover scale-110 opacity-20 filter blur-[2px]"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900/90 to-slate-950" />
-                <div className="absolute inset-0 bg-gradient-to-tr from-[#388E3C]/5 via-transparent to-[#F58220]/5 opacity-60" />
+                <div className="absolute inset-0 bg-gradient-to-br from-guava-dark via-slate-900/95 to-guava-dark" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-guava-green/10 via-transparent to-guava-orange/10" />
+                <div className="absolute -top-24 -right-24 w-72 h-72 bg-guava-orange/20 rounded-full blur-[100px]" />
+                <div className="absolute -bottom-32 -left-16 w-80 h-80 bg-guava-green/15 rounded-full blur-[120px]" />
                 
-                {/* Visual narrative pattern representing trade maps for ACX */}
-                <svg className="absolute inset-0 w-full h-full opacity-15 mix-blend-screen" xmlns="http://www.w3.org/2000/svg">
-                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-                  </pattern>
-                  <rect width="100%" height="100%" fill="url(#grid)" />
-                </svg>
               </div>
-              
-              <div className="relative z-10 flex flex-col gap-4">
-                <div className="flex items-center gap-2">
+
+              <div className="relative z-10 flex flex-col gap-5">
+                <div className="flex items-center gap-2.5">
                   <AcxLogo size="sm" />
-                  <span className="text-xl md:text-2xl font-black tracking-tighter bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent">ACX</span>
+                  <div>
+                    <span className="text-xl md:text-2xl font-black tracking-tighter bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent block leading-none">
+                      ACX
+                    </span>
+                    <span className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em]">
+                      Africa Credit Exchange
+                    </span>
+                  </div>
                 </div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[9px] font-bold text-gray-400 max-w-max">
-                  New Portal Account
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.06] backdrop-blur-sm border border-white/10 rounded-full text-[9px] font-bold text-white/60 max-w-max">
+                  <span className={`w-1.5 h-1.5 rounded-full ${authMode === "login" ? "bg-guava-orange" : "bg-guava-green"} animate-pulse`} />
+                  {authMode === "login" ? "Secure Sign In" : "New Account Registration"}
                 </div>
               </div>
 
-              <div className="relative z-10 flex-grow py-5 md:py-8 flex flex-col justify-center">
-                <div className="space-y-1.5">
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-none text-white uppercase">
-                    JOIN ACX
-                  </h1>
-                  <p className="text-xs md:text-sm font-black bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent uppercase tracking-wider">
-                    Connecting Opportunity, Empowering Growth
-                  </p>
-                </div>
-                
-                <p className="text-slate-400 text-xs md:text-sm mt-4 leading-relaxed font-sans font-medium max-w-sm">
-                  Choose your portal identity, complete the profile steps, and land directly in the right workspace after sign in.
-                </p>
-
-                {/* Available Portals Lists - customized to look uniquely original and matching ACX colors */}
-                <div className="mt-8 space-y-3 max-w-lg hidden sm:block">
-                  <p className="text-[10px] font-black tracking-wider text-slate-500 uppercase">ACCESS PORTALS</p>
-                  
-                  {/* Card 1: Business / Lenders */}
-                  <div 
-                     onClick={() => {
-                      setSelectedRole(UserRole.LENDER);
-                      localStorage.setItem("acx_preferred_role", UserRole.LENDER);
-                      if (authMode === "login") {
-                        if (!loginEmail || loginEmail.trim() === "" || loginEmail === "borrower@example.com" || loginEmail === "lender@example.com") {
-                          setLoginEmail("lender@example.com");
-                          setLoginPassword("password");
-                        }
-                      }
-                    }}
-                    className={`p-4 rounded-3xl border transition-all duration-300 cursor-pointer flex items-center gap-4 ${
-                      selectedRole === UserRole.LENDER 
-                        ? "bg-white/[0.07] border-guava-orange/40 shadow-[0_4px_24px_rgba(245,130,32,0.15)] scale-[1.02]" 
-                        : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10"
-                    }`}
+              <div className="relative z-10 flex-grow py-6 md:py-10 flex flex-col justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={authMode}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25 }}
                   >
-                    <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 transition-colors ${
-                      selectedRole === UserRole.LENDER 
-                        ? "bg-guava-orange/20 border-guava-orange/30 text-guava-orange" 
-                        : "bg-white/5 border-white/15 text-gray-400"
-                    }`}>
-                      <Landmark className="w-4.5 h-4.5" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xs font-black text-white flex items-center gap-1.5 justify-between">
-                        Business Portal
-                        {selectedRole === UserRole.LENDER && <span className="w-1.5 h-1.5 rounded-full bg-guava-orange animate-pulse" />}
-                      </h4>
-                      <p className="text-[9px] text-slate-400 font-sans mt-1 font-medium">
-                        Deploy liquidity pools, underwrite alternative credit cards, and manage indices.
-                      </p>
-                    </div>
-                  </div>
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-[1.05] text-white">
+                      {authMode === "login" ? (
+                        <>Welcome<br /><span className="bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent">Back</span></>
+                      ) : (
+                        <>Join Africa&apos;s<br /><span className="bg-gradient-to-r from-guava-orange to-guava-green bg-clip-text text-transparent">Credit Network</span></>
+                      )}
+                    </h1>
+                    <p className="text-white/50 text-sm mt-4 leading-relaxed font-medium max-w-sm">
+                      {authMode === "login"
+                        ? "Access your credit dashboard, loan portfolio, and liquidity tools across 52 African markets."
+                        : "Create your profile, get AI-powered credit scoring, and unlock capital tailored to African markets."}
+                    </p>
+                  </motion.div>
+                </AnimatePresence>
 
-                  {/* Card 2: Consumers */}
-                  <div 
-                    onClick={() => {
-                      setSelectedRole(UserRole.BORROWER);
-                      localStorage.setItem("acx_preferred_role", UserRole.BORROWER);
-                      if (authMode === "login") {
-                        if (!loginEmail || loginEmail.trim() === "" || loginEmail === "lender@example.com" || loginEmail === "borrower@example.com") {
-                          setLoginEmail("borrower@example.com");
-                          setLoginPassword("password");
+                {/* Portal selector cards */}
+                <div className="mt-8 space-y-2.5 max-w-md hidden sm:block">
+                  <p className="text-[9px] font-black tracking-[0.15em] text-white/30 uppercase">Select Portal</p>
+                  {[
+                    {
+                      role: UserRole.LENDER,
+                      title: "Business Portal",
+                      icon: Landmark,
+                      desc: "Deploy capital, manage credit lines, and access risk analytics.",
+                      accent: "guava-orange" as const,
+                    },
+                    {
+                      role: UserRole.BORROWER,
+                      title: "Consumer Portal",
+                      icon: User,
+                      desc: "Build credit history, access loans, and manage repayments.",
+                      accent: "guava-green" as const,
+                    },
+                  ].map(({ role, title, icon: Icon, desc, accent }) => (
+                    <div
+                      key={role}
+                      onClick={() => {
+                        setSelectedRole(role);
+                        localStorage.setItem("acx_preferred_role", role);
+                        if (authMode === "login") {
+                          if (!loginEmail || loginEmail.trim() === "" || loginEmail === "borrower@example.com" || loginEmail === "lender@example.com") {
+                            setLoginEmail(role === UserRole.LENDER ? "lender@example.com" : "borrower@example.com");
+                            setLoginPassword("password");
+                          }
                         }
-                      }
-                    }}
-                    className={`p-4 rounded-3xl border transition-all duration-300 cursor-pointer flex items-center gap-4 ${
-                      selectedRole === UserRole.BORROWER 
-                        ? "bg-white/[0.07] border-guava-green/40 shadow-[0_4px_24px_rgba(56,142,60,0.15)] scale-[1.02]" 
-                        : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10"
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 transition-colors ${
-                      selectedRole === UserRole.BORROWER 
-                        ? "bg-guava-green/20 border-guava-green/30 text-guava-green" 
-                        : "bg-white/5 border-white/15 text-gray-400"
-                    }`}>
-                      <User className="w-4.5 h-4.5" />
+                      }}
+                      className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer flex items-center gap-3.5 group ${
+                        selectedRole === role
+                          ? accent === "guava-orange"
+                            ? "bg-white/[0.08] border-guava-orange/50 shadow-[0_8px_32px_rgba(243,146,51,0.12)]"
+                            : "bg-white/[0.08] border-guava-green/50 shadow-[0_8px_32px_rgba(34,197,94,0.12)]"
+                          : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.05] hover:border-white/15"
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                        selectedRole === role
+                          ? accent === "guava-orange"
+                            ? "bg-guava-orange/20 text-guava-orange"
+                            : "bg-guava-green/20 text-guava-green"
+                          : "bg-white/5 text-white/40 group-hover:text-white/60"
+                      }`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-black text-white flex items-center gap-2">
+                          {title}
+                          {selectedRole === role && (
+                            <span className={`w-1.5 h-1.5 rounded-full ${accent === "guava-orange" ? "bg-guava-orange" : "bg-guava-green"} animate-pulse`} />
+                          )}
+                        </h4>
+                        <p className="text-[10px] text-white/40 mt-0.5 leading-snug">{desc}</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="text-xs font-black text-white flex items-center gap-1.5 justify-between">
-                        Consumer Portal
-                        {selectedRole === UserRole.BORROWER && <span className="w-1.5 h-1.5 rounded-full bg-guava-green animate-pulse" />}
-                      </h4>
-                      <p className="text-[9px] text-slate-400 font-sans mt-1 font-medium">
-                        Establish alternative identity, manage smart repay channels, and borrow liquidity.
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Secure note */}
-              <div className="relative z-10 flex items-center gap-1.5 text-[10px] text-slate-400 font-sans font-semibold mt-auto pt-4 border-t border-white/5">
-                <div className="w-1.5 h-1.5 rounded-full bg-guava-green animate-ping" />
-                Dual-route gateway secured by Guava API Framework
+              <div className="relative z-10 flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold mt-auto pt-4 border-t border-white/5 shrink-0">
+                <div className="relative flex h-2 w-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-guava-green opacity-75 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-guava-green" />
+                </div>
+                <span>Powered by Guava &middot; Encrypted &amp; compliant across African markets</span>
               </div>
             </div>
 
             {/* Right forms column */}
-            <div className="w-full md:w-1/2 lg:w-[48%] h-full bg-white dark:bg-slate-900 text-slate-900 dark:text-gray-150 flex flex-col justify-center p-6 md:p-12 overflow-y-auto relative shrink-0 transition-colors duration-300">
+            <div className="relative min-h-0 h-full flex flex-col bg-white dark:bg-slate-900 text-slate-900 dark:text-gray-150 transition-colors duration-300">
               <button
                 onClick={() => {
                   setShowAuthModal(false);
                   resetFormFields();
                 }}
-                className="absolute top-6 right-6 p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-full transition-all text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer z-20 shadow-sm"
+                className="absolute top-4 right-4 md:top-5 md:right-5 z-30 p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full transition-all text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer bg-white/90 dark:bg-slate-900/90"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="max-w-md w-full mx-auto">
-                {authMode === "register" ? (
-                <>
-                    {/* Exquisite Top-Mounted Progress Stepper Timeline */}
-                    <div className="flex items-center justify-between mb-8 max-w-sm mx-auto scale-95 origin-center select-none">
-                      {/* Step 1 */}
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border font-bold text-xs transition-all duration-300 ${
-                          step >= 1 
-                            ? "bg-gradient-to-tr from-emerald-500 to-teal-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20" 
-                            : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400"
-                        }`}>
-                          {step > 1 ? <Check className="w-4.5 h-4.5 stroke-[2.5]" /> : "1"}
+              {/* Scrollable form content */}
+              <div className={`flex-1 min-h-0 auth-panel-scroll px-5 md:px-10 lg:px-14 pt-5 pb-4 md:pt-6 md:pb-6 flex flex-col ${
+                authMode === "login" || (authMode === "register" && (step === 1 || step === 3))
+                  ? "justify-center"
+                  : ""
+              }`}>
+                <div className="max-w-lg w-full mx-auto">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={authMode}
+                      initial={{ opacity: 0, y: 8, scale: 0.99 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                      transition={{ duration: 0.22, ease: "easeOut" }}
+                      className="w-full"
+                    >
+                      {authMode === "register" ? (
+                        <>
+                    {/* Progress stepper — guava brand gradient */}
+                    <div className="flex items-center justify-between mb-8 select-none">
+                      {[
+                        { num: 1, label: "Portal", sub: "Choose type" },
+                        { num: 2, label: selectedRole === UserRole.LENDER ? "Business" : selectedRole === UserRole.BORROWER ? "Profile" : "Details", sub: "Your info" },
+                        { num: 3, label: "Verify", sub: "Security" },
+                      ].map(({ num, label, sub }, idx) => (
+                        <div key={num} className="flex items-center flex-1 last:flex-none">
+                          <div className="flex flex-col items-center">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 font-black text-xs transition-all duration-300 ${
+                              step > num
+                                ? "bg-guava-green border-guava-green text-white shadow-sm shadow-guava-green/25"
+                                : step === num
+                                  ? "bg-gradient-to-br from-guava-orange to-guava-green border-transparent text-white shadow-lg shadow-guava-orange/20"
+                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600"
+                            }`}>
+                              {step > num ? <Check className="w-4 h-4 stroke-[2.5]" /> : num}
+                            </div>
+                            <span className={`text-[9px] font-black uppercase tracking-wider mt-2 ${step >= num ? "text-slate-800 dark:text-slate-200" : "text-slate-300"}`}>{label}</span>
+                            <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest">{sub}</span>
+                          </div>
+                          {idx < 2 && (
+                            <div className="flex-1 h-0.5 mx-2 sm:mx-3 bg-slate-100 dark:bg-slate-800 relative rounded-full overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-guava-orange to-guava-green transition-all duration-500 rounded-full"
+                                style={{ width: step > num ? "100%" : "0%" }}
+                              />
+                            </div>
+                          )}
                         </div>
-                        <span className={`text-[9px] font-black uppercase tracking-wider mt-1.5 ${step >= 1 ? "text-slate-800 dark:text-slate-200" : "text-slate-400"}`}>Account</span>
-                        <span className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Step 1</span>
-                      </div>
-                      
-                      {/* Line 1-2 */}
-                      <div className="flex-1 h-[2px] mx-2 bg-slate-100 dark:bg-slate-800 relative rounded-full">
-                        <div 
-                          className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-amber-500 transition-all duration-500 rounded-full" 
-                          style={{ width: step >= 2 ? "100%" : "0%" }} 
-                        />
-                      </div>
-
-                      {/* Step 2 */}
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border font-bold text-xs transition-all duration-300 ${
-                          step >= 2 
-                            ? "bg-gradient-to-tr from-amber-500 to-orange-500 border-amber-500 text-white shadow-sm shadow-amber-500/20" 
-                            : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400"
-                        }`}>
-                          {step > 2 ? <Check className="w-4.5 h-4.5 stroke-[2.5]" /> : "2"}
-                        </div>
-                        <span className={`text-[9px] font-black uppercase tracking-wider mt-1.5 ${step >= 2 ? "text-slate-800 dark:text-slate-200" : "text-slate-400"}`}>
-                          {selectedRole === UserRole.LENDER ? "Company" : selectedRole === UserRole.BORROWER ? "Profile" : "Portal"}
-                        </span>
-                        <span className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Step 2</span>
-                      </div>
-
-                      {/* Line 2-3 */}
-                      <div className="flex-1 h-[2px] mx-2 bg-slate-100 dark:bg-slate-800 relative rounded-full">
-                        <div 
-                          className="absolute inset-0 bg-gradient-to-r from-amber-500 to-guava-orange transition-all duration-500 rounded-full" 
-                          style={{ width: step >= 3 ? "100%" : "0%" }} 
-                        />
-                      </div>
-
-                      {/* Step 3 */}
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border font-bold text-xs transition-all duration-300 ${
-                          step === 3 
-                            ? "bg-gradient-to-tr from-guava-orange to-red-500 border-guava-orange text-white shadow-sm shadow-guava-orange/25 animate-pulse" 
-                            : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400"
-                        }`}>
-                          3
-                        </div>
-                        <span className={`text-[9px] font-black uppercase tracking-wider mt-1.5 ${step >= 3 ? "text-slate-800 dark:text-slate-200" : "text-slate-400"}`}>Security</span>
-                        <span className="text-[7px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Step 3</span>
-                      </div>
+                      ))}
                     </div>
 
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[9px] font-black text-rose-500 dark:text-rose-400 tracking-widest uppercase">Join ACX</span>
-                        <button
-                          onClick={() => setAuthMode("login")}
-                          className="text-[9px] font-black uppercase tracking-widest text-guava-orange hover:underline cursor-pointer"
-                        >
-                          Login Instead
-                        </button>
-                      </div>
-
-                      <div className="mb-4 text-left border-l-2 border-guava-orange pl-3 py-0.5">
-                        <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                          Join ACX
-                        </p>
-                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                          Connecting Opportunity, Empowering Growth
-                        </p>
-                      </div>
-                      
-                      <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-1 leading-tight">
-                        {step === 1 && "Choose your portal identity"}
-                        {step === 2 && (selectedRole === UserRole.LENDER ? "Complete your Business profile" : "Complete your Individual profile")}
-                        {step === 3 && "Two-factor authorization security"}
-                      </h2>
-                      <p className="text-slate-400 dark:text-slate-500 text-xs font-medium mt-1">
-                        {step === 1 && "Select business or individual archetype to start."}
-                        {step === 2 && "Fill in the required information below to proceed."}
-                        {step === 3 && `Type the verification passcode transmitted to ${formData.email || "your address"}.`}
-                      </p>
-                    </div>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`step-${step}`}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -12 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="w-full"
+                      >
+                        <div className="mb-6">
+                          <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                            {step === 1 && "Choose your portal"}
+                            {step === 2 && (selectedRole === UserRole.LENDER ? "Business profile" : "Personal profile")}
+                            {step === 3 && "Verify your identity"}
+                          </h2>
+                          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-2">
+                            {step === 1 && "Select whether you're accessing credit as a business or individual."}
+                            {step === 2 && "Complete your details to get started with AI-powered credit scoring."}
+                            {step === 3 && `Enter the 6-digit code sent to ${formData.email || "your email"}.`}
+                          </p>
+                        </div>
 
                     {step === 1 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fadeIn">
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {[
                           {
                             role: UserRole.LENDER,
                             title: "Business Portal",
                             icon: Landmark,
-                            desc: "Deploy capital, manage credit lines, and run merchant/retailer nodes.",
+                            desc: "Deploy capital, manage credit lines, and access risk analytics across African markets.",
+                            accent: "orange" as const,
                           },
                           {
                             role: UserRole.BORROWER,
                             title: "Consumer Portal",
                             icon: User,
-                            desc: "Initialize credit passport, borrow, and manage pay-later channels.",
+                            desc: "Build your credit profile, access loans, and manage repayments with AI scoring.",
+                            accent: "green" as const,
                           },
                         ].map((r) => (
                           <button
                             key={r.role}
                             onClick={() => {
-                              localStorage.setItem(
-                                "acx_preferred_role",
-                                r.role,
-                              );
+                              localStorage.setItem("acx_preferred_role", r.role);
                               setSelectedRole(r.role);
                               setStep(2);
                             }}
-                            className={`p-5 rounded-3xl border text-left transition-all duration-300 cursor-pointer group flex flex-col justify-between h-44 ${
-                              selectedRole === r.role 
-                                ? (r.role === UserRole.LENDER ? "border-guava-orange bg-guava-orange/[0.04] text-slate-900 dark:text-white" : "border-guava-green bg-guava-green/[0.04] text-slate-900 dark:text-white") 
-                                : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-slate-200 dark:hover:border-slate-750 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-white"
+                            className={`relative p-6 rounded-3xl border-2 text-left transition-all duration-300 cursor-pointer group flex flex-col justify-between min-h-[180px] overflow-hidden ${
+                              selectedRole === r.role
+                                ? r.accent === "orange"
+                                  ? "border-guava-orange bg-gradient-to-br from-guava-orange/[0.06] to-orange-50/50 dark:from-guava-orange/10 dark:to-slate-900 shadow-lg shadow-guava-orange/10"
+                                  : "border-guava-green bg-gradient-to-br from-guava-green/[0.06] to-green-50/50 dark:from-guava-green/10 dark:to-slate-900 shadow-lg shadow-guava-green/10"
+                                : "border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md"
                             }`}
                           >
-                            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 transition-all duration-300 ${
-                              selectedRole === r.role 
-                                ? (r.role === UserRole.LENDER ? "bg-guava-orange/20 border-guava-orange/30 text-guava-orange shadow-sm" : "bg-guava-green/20 border-guava-green/30 text-guava-green shadow-sm") 
-                                : "bg-slate-50 dark:bg-slate-800 border-slate-150 dark:border-slate-700 text-gray-400 dark:text-gray-500 group-hover:scale-105"
+                            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+                              selectedRole === r.role
+                                ? r.accent === "orange" ? "bg-guava-orange/15 text-guava-orange" : "bg-guava-green/15 text-guava-green"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:scale-105"
                             }`}>
                               <r.icon className="w-5 h-5" />
                             </div>
-                            <div className="mt-4">
-                              <h4 className="text-sm font-black tracking-tight mb-1 text-slate-900 dark:text-white">
+                            <div className="mt-5">
+                              <h4 className="text-sm font-black tracking-tight mb-1.5 text-slate-900 dark:text-white flex items-center gap-2">
                                 {r.title}
+                                <ArrowRight className={`w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all ${r.accent === "orange" ? "text-guava-orange" : "text-guava-green"}`} />
                               </h4>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                                 {r.desc}
                               </p>
                             </div>
                           </button>
                         ))}
                       </div>
+                      <p className="text-center text-xs text-slate-400 mt-6">
+                        Already have an account?{" "}
+                        <button
+                          type="button"
+                          onClick={() => setAuthMode("login")}
+                          className="font-black text-guava-orange hover:underline cursor-pointer"
+                        >
+                          Sign In
+                        </button>
+                      </p>
+                      </>
                     )}
 
                     {step === 2 && (
-                      <div className="space-y-5 animate-fadeIn">
-                        {/* Premium Card Container wrapper */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative space-y-4 transition-all">
+                      <div className="space-y-5">
+                        {/* Profile form card */}
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-6 md:p-7 shadow-xl shadow-slate-200/40 dark:shadow-none relative space-y-4 transition-all">
                           {/* Inner Top Summary Badge Panel */}
                           <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-800 pb-4">
                             <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${
@@ -747,7 +748,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                             </button>
                           </div>
 
-                          <div className="max-h-[48vh] overflow-y-auto pr-1.5 space-y-5 [scrollbar-width:thin]">
+                          <div className="space-y-5">
                            {/* Profile Identity Grid */}
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
@@ -1245,34 +1246,27 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                     )}
 
                     {step === 3 && (
-                      <div className="space-y-6 animate-fadeIn">
-                        {/* Premium Card Container wrapper */}
-                        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6 flex flex-col items-center">
-                          <div className="w-14 h-14 bg-amber-50 dark:bg-amber-950/20 rounded-2xl flex items-center justify-center text-amber-500 animate-pulse shrink-0">
-                            <Key className="w-6 h-6" />
+                      <div className="space-y-6">
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-8 shadow-xl shadow-slate-200/40 dark:shadow-none space-y-6 flex flex-col items-center">
+                          <div className="w-16 h-16 bg-gradient-to-br from-guava-orange/15 to-guava-green/15 rounded-2xl flex items-center justify-center text-guava-orange shrink-0 ring-1 ring-guava-orange/20">
+                            <Key className="w-7 h-7" />
                           </div>
-                          
-                          <div className="space-y-2 text-center w-full">
-                            <h3 className="text-lg font-black text-slate-800 dark:text-white">
-                              Two-Factor Authorization
-                            </h3>
-                            <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
-                              Enter the 6-digit passcode sent to{" "}
-                              <span className="text-slate-900 dark:text-white font-bold font-mono text-xs block mt-0.5">
-                                {formData.email}
-                              </span>
-                            </p>
 
-                            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl text-left shadow-inner">
-                              <p className="text-[8px] font-black uppercase text-guava-orange tracking-widest mb-1.5 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-guava-orange" />
-                                Development Sandbox
+                          <div className="space-y-2 text-center w-full">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                              Enter the 6-digit code sent to
+                            </p>
+                            <span className="text-slate-900 dark:text-white font-bold text-sm block">
+                              {formData.email}
+                            </span>
+
+                            <div className="p-4 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-2xl text-left mt-4">
+                              <p className="text-[9px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-widest mb-1 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                Demo verification code
                               </p>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                                Passcode:{" "}
-                                <span className="font-mono font-black text-slate-900 dark:text-white tracking-wider">
-                                  {expectedCode}
-                                </span>
+                              <p className="text-sm font-mono font-black text-slate-800 dark:text-white tracking-[0.2em]">
+                                {expectedCode}
                               </p>
                             </div>
                           </div>
@@ -1285,31 +1279,30 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                               setTwoFactorCode(e.target.value.replace(/\D/g, ""))
                             }
                             placeholder="000000"
-                            className="w-full max-w-[200px] mx-auto px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-2xl font-black text-center tracking-[0.3em] text-slate-900 dark:text-white outline-none focus:border-guava-orange dark:focus:border-guava-orange transition-all font-mono"
+                            className="w-full max-w-[220px] mx-auto px-4 py-4 bg-slate-50/80 dark:bg-slate-800/60 border-2 border-slate-200/80 dark:border-slate-700 rounded-2xl text-2xl font-black text-center tracking-[0.35em] text-slate-900 dark:text-white outline-none focus:border-guava-orange focus:ring-2 focus:ring-guava-orange/15 transition-all font-mono"
                           />
                         </div>
 
-                        {/* Bottom Navigation */}
-                        <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex gap-3">
                           <button
                             onClick={() => setStep(2)}
-                            className="flex-1 py-3 border border-slate-150 dark:border-slate-800 rounded-xl font-black text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                            className="flex-1 py-3.5 border border-slate-200 dark:border-slate-700 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                           >
                             Back
                           </button>
                           <button
                             onClick={verifyAndFinalize}
                             disabled={isFinalizingRegistration}
-                            className="flex-1 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-35"
+                            className="flex-1 py-3.5 bg-gradient-to-r from-guava-orange to-guava-green text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-guava-orange/20 cursor-pointer disabled:opacity-35 hover:scale-[1.01] transition-all"
                           >
                             {isFinalizingRegistration ? (
                               <>
-                                <span className="animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent inline-block" />
-                                Activating...
+                                <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent inline-block" />
+                                Creating account...
                               </>
                             ) : (
                               <>
-                                Activate
+                                Complete Registration
                                 <Shield className="w-3.5 h-3.5" />
                               </>
                             )}
@@ -1318,207 +1311,205 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
                         <button
                           onClick={initiate2FA}
                           disabled={isSendingCode}
-                          className="text-[9px] font-black uppercase tracking-widest text-gray-300 hover:text-guava-orange transition-colors cursor-pointer"
+                          className="w-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-guava-orange transition-colors cursor-pointer"
                         >
-                          {isSendingCode ? "Sending..." : "Resend Code"}
+                          {isSendingCode ? "Sending..." : "Resend verification code"}
                         </button>
                       </div>
                     )}
+                      </motion.div>
+                    </AnimatePresence>
                   </>
                 ) : (
-                  <div className="space-y-6 animate-fadeIn">
-                    <div className="mb-4">
-                      <span className="text-[9px] font-black text-rose-500 dark:text-rose-400 tracking-widest uppercase">AUTHENTICATION</span>
-                      <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-1 leading-tight">
-                        Welcome back to ACX
+                  <div className="space-y-6">
+                    <div className="mb-2">
+                      <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                        Sign in to your account
                       </h2>
-                      <p className="text-slate-400 dark:text-slate-500 text-xs font-medium mt-1">
-                        Input your access credentials to lease security nodes.
+                      <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-2">
+                        Access your credit dashboard, loans, and liquidity tools.
                       </p>
                     </div>
 
-                    {/* Premium Card form wrapper */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative space-y-5 transition-all">
-                      <div className="space-y-1.5 pb-2 border-b border-slate-50 dark:border-slate-800">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">
-                          Access Perspective Gateway
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedRole(UserRole.LENDER);
-                              localStorage.setItem(
-                                "acx_preferred_role",
-                                UserRole.LENDER,
-                              );
-                              if (!loginEmail || loginEmail.trim() === "" || loginEmail === "borrower@example.com" || loginEmail === "lender@example.com") {
-                                setLoginEmail("lender@example.com");
-                                setLoginPassword("password");
-                              }
-                            }}
-                            className={`py-2 px-3 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                              selectedRole === UserRole.LENDER
-                                ? "border-guava-orange bg-guava-orange/[0.04] text-guava-orange shadow-inner"
-                                : "border-slate-100 dark:border-slate-805 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350"
-                            }`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${selectedRole === UserRole.LENDER ? "bg-guava-orange animate-pulse" : "bg-slate-200 dark:bg-slate-750"}`} />
-                            Business Portal
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedRole(UserRole.BORROWER);
-                              localStorage.setItem(
-                                "acx_preferred_role",
-                                UserRole.BORROWER,
-                              );
-                              if (!loginEmail || loginEmail.trim() === "" || loginEmail === "lender@example.com" || loginEmail === "borrower@example.com") {
-                                setLoginEmail("borrower@example.com");
-                                setLoginPassword("password");
-                              }
-                            }}
-                            className={`py-2 px-3 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                              selectedRole === UserRole.BORROWER
-                                ? "border-guava-green bg-guava-green/[0.04] text-guava-green shadow-inner"
-                                : "border-slate-100 dark:border-slate-805 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350"
-                            }`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${selectedRole === UserRole.BORROWER ? "bg-guava-green animate-pulse" : "bg-slate-200 dark:bg-slate-750"}`} />
-                            Consumer Portal
-                          </button>
-                        </div>
-                      </div>
+                    {/* Portal role selector */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { role: UserRole.LENDER, title: "Business", icon: Landmark, color: "guava-orange" as const },
+                        { role: UserRole.BORROWER, title: "Consumer", icon: User, color: "guava-green" as const },
+                      ].map(({ role, title, icon: Icon, color }) => (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => {
+                            setSelectedRole(role);
+                            localStorage.setItem("acx_preferred_role", role);
+                            if (!loginEmail || loginEmail.trim() === "" || loginEmail === "lender@example.com" || loginEmail === "borrower@example.com") {
+                              setLoginEmail(role === UserRole.LENDER ? "lender@example.com" : "borrower@example.com");
+                              setLoginPassword("password");
+                            }
+                          }}
+                          className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-300 cursor-pointer overflow-hidden group ${
+                            selectedRole === role
+                              ? color === "guava-orange"
+                                ? "border-guava-orange bg-guava-orange/[0.04] shadow-md shadow-guava-orange/10"
+                                : "border-guava-green bg-guava-green/[0.04] shadow-md shadow-guava-green/10"
+                              : "border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-600"
+                          }`}
+                        >
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-colors ${
+                            selectedRole === role
+                              ? color === "guava-orange" ? "bg-guava-orange/15 text-guava-orange" : "bg-guava-green/15 text-guava-green"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                          }`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">{title}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Portal</p>
+                          {selectedRole === role && (
+                            <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${color === "guava-orange" ? "bg-guava-orange" : "bg-guava-green"} animate-pulse`} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
 
-                      <form onSubmit={handleLoginSubmit} className="space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-3">
+                    {/* Login form card */}
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-6 md:p-7 shadow-xl shadow-slate-200/40 dark:shadow-none space-y-5">
+                      <form onSubmit={handleLoginSubmit} className="space-y-5">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                             Email address
                           </label>
-                          <input
-                            type="email"
-                            required
-                            value={loginEmail}
-                            onChange={(e) => setLoginEmail(e.target.value)}
-                            placeholder="user@example.com"
-                            className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-xl text-sm font-sans font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 outline-none transition-all ${
-                              selectedRole === UserRole.BORROWER 
-                                ? "focus:border-guava-green focus:ring-2 focus:ring-guava-green/10" 
-                                : "focus:border-guava-orange focus:ring-2 focus:ring-guava-orange/10"
-                            }`}
-                          />
+                          <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 pointer-events-none" />
+                            <input
+                              type="email"
+                              required
+                              value={loginEmail}
+                              onChange={(e) => setLoginEmail(e.target.value)}
+                              placeholder="you@company.com"
+                              className={`w-full pl-11 pr-4 py-3.5 bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none transition-all ${
+                                selectedRole === UserRole.BORROWER
+                                  ? "focus:border-guava-green focus:ring-2 focus:ring-guava-green/15"
+                                  : "focus:border-guava-orange focus:ring-2 focus:ring-guava-orange/15"
+                              }`}
+                            />
+                          </div>
                         </div>
-                        
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center px-3">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                              Access Key / Password
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                              Password
                             </label>
                             <button
                               type="button"
                               onClick={handleForgotPassword}
                               disabled={resetEmailLoading}
-                              className="text-[9px] font-black uppercase tracking-widest text-guava-orange hover:text-guava-dark transition-colors disabled:opacity-50 cursor-pointer"
+                              className="text-[10px] font-black uppercase tracking-widest text-guava-orange hover:text-guava-orange/80 transition-colors disabled:opacity-50 cursor-pointer"
                             >
-                              {resetEmailLoading ? "Transmitting..." : "Forgot?"}
+                              {resetEmailLoading ? "Sending..." : "Forgot password?"}
                             </button>
                           </div>
                           <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 pointer-events-none" />
                             <input
                               id="login-password-input"
                               type={showLoginPassword ? "text" : "password"}
                               required
                               value={loginPassword}
                               onChange={(e) => setLoginPassword(e.target.value)}
-                              placeholder="••••••••"
-                              className={`w-full pl-4 pr-12 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-xl text-sm font-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 outline-none transition-all ${
-                                selectedRole === UserRole.BORROWER 
-                                  ? "focus:border-guava-green focus:ring-2 focus:ring-guava-green/10" 
-                                  : "focus:border-guava-orange focus:ring-2 focus:ring-guava-orange/10"
+                              placeholder="Enter your password"
+                              className={`w-full pl-11 pr-12 py-3.5 bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 outline-none transition-all ${
+                                selectedRole === UserRole.BORROWER
+                                  ? "focus:border-guava-green focus:ring-2 focus:ring-guava-green/15"
+                                  : "focus:border-guava-orange focus:ring-2 focus:ring-guava-orange/15"
                               }`}
                             />
                             <button
                               id="login-password-toggle"
                               type="button"
                               onClick={() => setShowLoginPassword(!showLoginPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                               aria-label={showLoginPassword ? "Hide password" : "Show password"}
                             >
-                              {showLoginPassword ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
+                              {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>
 
                         {resetEmailSent && (
-                          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-fadeIn">
-                            <p className="text-[8px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-widest mb-1">
-                              Password Reset Sent
-                            </p>
-                            <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium leading-relaxed">
-                              A recovery link was dispatched to <span className="font-bold underline">{loginEmail}</span>. Please verify your inbox and spam folder.
-                            </p>
+                          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 rounded-2xl animate-fadeIn">
+                            <div className="flex items-start gap-3">
+                              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-black text-emerald-700 dark:text-emerald-400">Reset link sent</p>
+                                <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+                                  Check your inbox at <span className="font-bold">{loginEmail}</span>
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
 
                         {resetEmailError && (
-                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-fadeIn">
-                            <p className="text-[8px] font-black uppercase text-red-600 dark:text-red-400 tracking-widest mb-1">
-                              Recovery Failed
-                            </p>
-                            <p className="text-[10px] text-red-700 dark:text-red-300 font-medium font-sans">
-                              {resetEmailError}
-                            </p>
+                          <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/40 rounded-2xl animate-fadeIn">
+                            <p className="text-xs font-black text-red-600 dark:text-red-400">Could not send reset email</p>
+                            <p className="text-[11px] text-red-500/80 mt-1">{resetEmailError}</p>
                           </div>
                         )}
 
-                        <div className="p-3 bg-amber-500/[0.04] dark:bg-amber-500/[0.02] border border-amber-500/10 dark:border-amber-500/5 rounded-xl">
-                          <p className="text-[8px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-widest mb-1 flex items-center gap-1">
+                        <div className="p-3.5 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30 rounded-xl">
+                          <p className="text-[9px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-widest mb-1 flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            Development Bypass (Pass: password)
+                            Demo credentials
                           </p>
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">
-                            borrower@example.com / lender@example.com
+                          <p className="text-[11px] text-amber-600/70 dark:text-amber-400/60 font-mono">
+                            borrower@example.com / lender@example.com &middot; password
                           </p>
                         </div>
 
-                        <div className="flex flex-col gap-3.5 pt-2">
-                          <button
-                            type="submit"
-                            disabled={isLoggingIn}
-                            className={`w-full py-3 text-white dark:text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 ${
-                              selectedRole === UserRole.BORROWER 
-                                ? "bg-slate-900 dark:bg-white hover:bg-guava-green dark:hover:bg-guava-green dark:hover:text-white" 
-                                : "bg-slate-900 dark:bg-white hover:bg-guava-orange dark:hover:bg-guava-orange dark:hover:text-white"
-                            }`}
-                          >
-                            {isLoggingIn ? (
-                              <>
-                                <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white dark:border-slate-950 border-t-transparent inline-block" />
-                                Verifying Node...
-                              </>
-                            ) : (
-                              "Login to ACX"
-                            )}
-                          </button>
-                          
-                          <button
-                            type="button"
-                            onClick={() => setAuthMode("register")}
-                            className="w-full py-3 border border-slate-150 dark:border-slate-800 rounded-xl font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all cursor-pointer"
-                          >
-                            Signup to ACX
-                          </button>
-                        </div>
+                        <button
+                          type="submit"
+                          disabled={isLoggingIn}
+                          className={`w-full py-4 text-white font-black text-xs uppercase tracking-[0.15em] rounded-2xl transition-all shadow-lg cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2.5 ${
+                            selectedRole === UserRole.BORROWER
+                              ? "bg-gradient-to-r from-guava-green to-emerald-600 shadow-guava-green/25 hover:shadow-xl hover:shadow-guava-green/30 hover:scale-[1.01]"
+                              : "bg-gradient-to-r from-guava-orange to-orange-500 shadow-guava-orange/25 hover:shadow-xl hover:shadow-guava-orange/30 hover:scale-[1.01]"
+                          }`}
+                        >
+                          {isLoggingIn ? (
+                            <>
+                              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent inline-block" />
+                              Signing in...
+                            </>
+                          ) : (
+                            <>
+                              Sign In to ACX
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
                       </form>
                     </div>
+
+                    <p className="text-center text-xs text-slate-400">
+                      Don&apos;t have an account?{" "}
+                      <button
+                        type="button"
+                        onClick={() => setAuthMode("register")}
+                        className="font-black text-guava-orange hover:underline cursor-pointer"
+                      >
+                        Create one free
+                      </button>
+                    </p>
                   </div>
                 )}
+                </motion.div>
+              </AnimatePresence>
+                </div>
               </div>
+
+
             </div>
           </motion.div>
         )}

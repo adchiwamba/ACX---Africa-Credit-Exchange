@@ -1,54 +1,31 @@
 import { useState, useMemo, useEffect } from "react";
-import { UserProfile, UserRole } from "../types";
+import { UserProfile, UserRole, LoanStatus, LoanRequest, Repayment } from "../types";
 import { useFirebase } from "../components/FirebaseProvider";
 import { BusinessLocationMap } from "../components/BusinessLocationMap";
 import { motion, AnimatePresence } from "motion/react";
-import { Html5QrcodeScanner } from "html5-qrcode";
-import { QRCodeCanvas } from "qrcode.react";
-import {
-  Building2,
-  ShieldCheck,
-  Globe,
-  Wallet,
-  CheckCircle2,
-  Activity,
-  Lock,
-  ArrowRight,
-  Landmark,
-  Scale,
-  Percent,
-  Database,
-  RefreshCw,
-  Fingerprint,
-  UploadCloud,
-  FileSearch,
-  Banknote,
-  Download,
-  Users,
-  TrendingUp,
-  DollarSign,
-  BarChart as BarChartIcon,
-  PieChart as PieChartIcon,
-  Package,
-  Plus,
-  Edit3,
-  Trash2,
-  Save,
-  Image as ImageIcon,
-  AlertTriangle,
-  Gavel,
-  UserX,
-  Bell,
-  Mail,
-  Search,
-  Scan,
-  QrCode,
+import { 
+  ShieldCheck, 
+  CheckCircle2, 
+  Lock, 
+  ArrowRight, 
+  Landmark, 
+  Percent, 
+  RefreshCw, 
+  UploadCloud, 
+  Banknote, 
+  Users, 
+  TrendingUp, 
+  Save, 
+  AlertTriangle, 
+  UserX, 
+  X, 
+  LayoutDashboard,
+  PlusCircle,
+  ShieldAlert,
   Printer,
-  Zap,
-  X,
-  Calendar,
-  MapPin,
-  SlidersHorizontal,
+  Briefcase,
+  Settings,
+  Bell
 } from "lucide-react";
 import {
   XAxis,
@@ -60,46 +37,48 @@ import {
   Area,
   PieChart,
   Pie,
-  Cell,
-  BarChart,
-  Bar,
+  Cell
 } from "recharts";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-import { StockItem } from "../types";
+import { firestoreService } from "../services/firestoreService";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+interface StaffUser {
+  uid: string;
+  displayName: string;
+  email: string;
+  role: UserRole;
+  kycStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  creditScore: number;
+  balance: number;
+  borrowLimit: number;
+  isBlacklisted: boolean;
+  department: string;
+  blacklistReason?: string;
+  blacklistCategory?: string;
 }
 
 interface LenderProfileProps {
   user: UserProfile;
 }
 
-type LenderSection =
-  | "identity"
-  | "liquidity"
-  | "mandate"
-  | "income"
-  | "compliance"
-  | "documents"
-  | "inventory"
-  | "delinquency";
+type LenderTab = 
+  | "dashboard" 
+  | "portfolio"
+  | "blacklist"
+  | "reports"
+  | "users"
+  | "node"
+  | "config";
 
-type TimeRange = "30D" | "6M" | "1Y" | "ALL";
-type AssetClass =
-  | "ALL"
-  | "Energy"
-  | "Agriculture"
-  | "Retail"
-  | "Retailer"
-  | "Consumer";
-type Region =
-  | "ALL"
-  | "East Africa"
-  | "Central Europe"
-  | "Southeast Asia"
-  | "Southern Africa";
+type DelinquentLoanStage = "INITIAL" | "WRITTEN" | "FINAL" | "BLACKLISTED";
+
+interface DelinquentLoan {
+  id: string;
+  borrower: string;
+  amount: number;
+  overdueDays: number;
+  creditScore: number;
+  stage: DelinquentLoanStage;
+}
 
 const PNL_DATA = [
   { month: "Jan", revenue: 45000, expenses: 12000, profit: 33000 },
@@ -112,87 +91,187 @@ const PNL_DATA = [
 
 const REVENUE_STREAMS = [
   { name: "Interest Yield", value: 65, color: "#f36d38" },
-  { name: "Origination Fees", value: 20, color: "#1e293b" },
+  { name: "Origination Fees", value: 20, color: "#000000" },
   { name: "Late Penalties", value: 10, color: "#3b82f6" },
-  { name: "Service Fees", value: 5, color: "#22c55e" },
+  { name: "service Fees", value: 5, color: "#22c55e" },
 ];
 
 export default function LenderProfile({ user }: LenderProfileProps) {
   const { updateProfile } = useFirebase();
-  const [activeSection, setActiveSection] = useState<LenderSection>("identity");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isVerified, setIsVerified] = useState(user.kycStatus === "VERIFIED");
-  const [step, setStep] = useState(1);
-  const [inventory, setInventory] = useState<StockItem[]>(user.inventory || []);
 
-  const [isUploading, setIsUploading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isBulkPrintOpen, setIsBulkPrintOpen] = useState(false);
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-  const [qrItem, setQrItem] = useState<StockItem | null>(null);
-  const [scannedItem, setScannedItem] = useState<StockItem | null>(null);
-  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
-  const [newItem, setNewItem] = useState<Partial<StockItem>>({
-    name: "",
-    category: "General",
-    price: 0,
-    currency: "USD",
-    description: "",
-    stockQuantity: 0,
-    lowStockThreshold: 5,
-    barcode: "",
+  // Navigation states
+  const [activeTab, setActiveTab] = useState<LenderTab>("dashboard");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isVerified, setIsVerified] = useState(user.kycStatus === "VERIFIED");
+
+  // Core configuration parameters
+  const [lenderConfig, setLenderConfig] = useState({
+    maxDebtToIncome: 40,
+    baseApr: 12.4,
+    penaltyInterestMultiplier: 1.5,
+    autoScoreThreshold: 685,
+    gracePeriodDays: 5,
+    is2faMandatory: user.is2FAEnabled || false,
+    autoFundApproval: true,
   });
 
-  const handleSaveItem = () => {
-    if (editingItem) {
-      setInventory((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? ({ ...item, ...newItem } as StockItem)
-            : item,
-        ),
-      );
-    } else {
-      const itemToAdd: StockItem = {
-        ...newItem,
-        id: `prod_${Date.now()}`,
-      } as StockItem;
-      setInventory((prev) => [...prev, itemToAdd]);
+  // State to track live visual credit events
+  const [liveLogEvents, setLiveLogEvents] = useState([
+    { id: "1", type: "info", text: "Enterprise node online: connected securely to ACX liquidity rails", time: "09:12 AM" },
+    { id: "2", type: "success", text: "Staff disbursement request auto-routed to smart liquidity pool #10A", time: "10:45 AM" },
+    { id: "3", type: "warning", text: "Warning: Employee T. Moyo limit adjusted to account for alternative score drop", time: "11:20 AM" },
+    { id: "4", type: "success", text: "Repayment of $450 received from Staff Member S. Kamwendo (DTI safe)", time: "01:15 PM" },
+  ]);
+
+  // System Configuration states
+  const [lenderData, setLenderData] = useState({
+    entityName: user.borrowerDetails?.profile?.businessName || user.displayName || "Guava Corp International",
+    taxId: user.organizationDetails?.taxId || user.borrowerDetails?.profile?.businessReg || "TAX-77821-ACX",
+    jurisdiction: user.country || "East Africa",
+    hqAddress: user.physicalAddress || "Guava Towers Block C, Lilongwe",
+    latitude: user.latitude || -13.9626,
+    longitude: user.longitude || 33.7718,
+    entityType: user.organizationDetails?.industry || "Institutional Investor",
+    liquidityCapacity: 500000,
+    minYieldTarget: 12.0,
+    maxRiskExposure: "MEDIUM"
+  });
+
+  // Document Uploads states & progressive validation states
+  const [uploads, setUploads] = useState({
+    governance: true,
+    proofOfFunds: true,
+    operatingLicense: false,
+    complianceAudit: false,
+    taxResidency: false,
+  });
+
+  const [uploadProgress, setUploadProgress] = useState<Record<string, {
+    progress: number;
+    status: 'idle' | 'uploading' | 'analyzing' | 'approved';
+    fileName?: string;
+  }>>({
+    governance: { progress: 100, status: 'approved', fileName: 'governance_framework.pdf' },
+    proofOfFunds: { progress: 100, status: 'approved', fileName: 'bank_statement_proof.pdf' }
+  });
+
+  // Live employee/users state from localStorage
+  const [customUsers, setCustomUsers] = useState<StaffUser[]>([]);
+  const [loansList, setLoansList] = useState<LoanRequest[]>([]);
+  const [repaymentsList, setRepaymentsList] = useState<Repayment[]>([]);
+
+  // Loan Management local tabs and calculator states
+  const [nodeSubTab, setNodeSubTab] = useState<"loan_mgr" | "entity_info">("loan_mgr");
+  const [loanManagerTab, setLoanManagerTab] = useState<"payments" | "calculator" | "notifications">("payments");
+  const [selectedRepayLoanId, setSelectedRepayLoanId] = useState<string>("");
+  const [calcPrincipal, setCalcPrincipal] = useState<number>(5000);
+  const [calcInterest, setCalcInterest] = useState<number>(12);
+  const [calcTermMonths, setCalcTermMonths] = useState<number>(12);
+  const [calculatedInstallment, setCalculatedInstallment] = useState<number>(444.24);
+  const [calculatedTotalInterest, setCalculatedTotalInterest] = useState<number>(330.88);
+  const [calculatedTotalPayable, setCalculatedTotalPayable] = useState<number>(5330.88);
+  const [amortizationSchedule, setAmortizationSchedule] = useState<{ month: number, payment: number, principal: number, interest: number, balance: number }[]>([]);
+  
+  // Modals / forms
+  const [searchQuery, setSearchQuery] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
+  
+  // New User Form State
+  const [newUserForm, setNewUserForm] = useState({
+    displayName: "",
+    email: "",
+    role: UserRole.BORROWER,
+    kycStatus: "VERIFIED" as 'PENDING' | 'VERIFIED' | 'REJECTED',
+    creditScore: 710,
+    balance: 500,
+    borrowLimit: 3000
+  });
+
+  // Blacklist addition state
+  const [blacklistForm, setBlacklistForm] = useState({
+    emailOrUid: "",
+    reason: "Late payments warning delinquency",
+    category: "Default Risk"
+  });
+
+  // Report execution builder parameters
+  const [reportType, setReportType] = useState("PNL");
+  const [reportFormat, setReportFormat] = useState("PDF");
+  const [reportDateRange, setReportDateRange] = useState("Q2-2026");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportOutputs, setReportOutputs] = useState<string[]>([]);
+
+
+
+  // Notifications Popover State
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  // Load custom users from localStorage & loans from firebase
+  useEffect(() => {
+    const loadData = async () => {
+      // Load custom users
+      const raw = localStorage.getItem("acx_custom_users");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          setCustomUsers(parsed);
+        } catch {
+          setCustomUsers(getSampleUsers());
+        }
+      } else {
+        const samples = getSampleUsers();
+        localStorage.setItem("acx_custom_users", JSON.stringify(samples));
+        setCustomUsers(samples);
+      }
+
+      // Load real loans list from firestore
+      try {
+        const loans = await firestoreService.getLoans();
+        setLoansList(loans || []);
+      } catch (err) {
+        console.error("Failed to load real loans, using fallbacks:", err);
+        setLoansList(getSampleLoans(user.uid));
+      }
+
+      // Load repayments list from firestore
+      try {
+        const reps = await firestoreService.getRepayments();
+        if (reps && reps.length > 0) {
+          setRepaymentsList(reps);
+        } else {
+          setRepaymentsList(getSampleRepayments());
+        }
+      } catch (err) {
+        console.error("Failed to load repayments, using fallbacks:", err);
+        setRepaymentsList(getSampleRepayments());
+      }
+    };
+    loadData();
+  }, [user.uid]);
+
+  // Recalculate dynamic loan calculations of calculator
+  useEffect(() => {
+    const P = calcPrincipal || 0;
+    const r = (calcInterest || 0) / 12 / 100;
+    const n = calcTermMonths || 12;
+    
+    if (P <= 0 || n <= 0) {
+      setCalculatedInstallment(0);
+      setCalculatedTotalInterest(0);
+      setCalculatedTotalPayable(0);
+      setAmortizationSchedule([]);
+      return;
     }
-    setIsModalOpen(false);
-    setEditingItem(null);
-    setNewItem({
-      name: "",
-      category: "General",
-      price: 0,
-      currency: "USD",
-      description: "",
-      stockQuantity: 0,
-      lowStockThreshold: 5,
-      barcode: "",
-    });
-  };
-
-  const handleEditItem = (item: StockItem) => {
-    setEditingItem(item);
-    setNewItem(item);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteItem = (id: string) => {
-    if (
-      confirm("Are you sure you want to remove this asset from your inventory?")
-    ) {
-      setInventory((prev) =>
-        prev
-          .map((item) =>
-            item.id === id ? { ...item, stockQuantity: 0 } : item,
-          )
-          .filter((item) => item.id !== id),
-      );
+    
+    let monthlyPayment = 0;
+    if (r === 0) {
+      monthlyPayment = P / n;
+    } else {
+      monthlyPayment = P * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
     }
   };
 
@@ -430,7 +509,8 @@ export default function LenderProfile({ user }: LenderProfileProps) {
             [key]: { progress: 100, status: 'approved', fileName: file.name },
           }));
           setUploads((prev) => ({ ...prev, [key]: true }));
-        }, 1200);
+          addLogEvent("success", `KYB file verified: ${file.name} validated in secure compliance vault`);
+        }, 1250);
       } else {
         setUploadProgress((prev) => ({
           ...prev,
@@ -442,21 +522,6 @@ export default function LenderProfile({ user }: LenderProfileProps) {
 
   const isUploadComplete = Object.values(uploads).every((v) => v);
 
-  const clearNodeCache = () => {
-    if (
-      confirm(
-        "Are you sure you want to clear the node cache? This will reset all local registration data and reload the terminal.",
-      )
-    ) {
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith("acx_")) {
-          localStorage.removeItem(key);
-        }
-      });
-      window.location.reload();
-    }
-  };
-
   const saveProfile = async () => {
     setIsSaving(true);
     try {
@@ -467,27 +532,14 @@ export default function LenderProfile({ user }: LenderProfileProps) {
         longitude: lenderData.longitude,
         organizationDetails: {
           companySize: user.organizationDetails?.companySize || "Medium",
-          contactPerson:
-            user.organizationDetails?.contactPerson || user.displayName,
+          contactPerson: user.organizationDetails?.contactPerson || user.displayName || "HR Representative",
           industry: lenderData.entityType,
           taxId: lenderData.taxId,
         },
-        borrowerDetails: {
-          ...user.borrowerDetails,
-          profile: {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ...(user.borrowerDetails?.profile || ({} as any)),
-            businessName: lenderData.entityName,
-            businessReg: lenderData.taxId,
-            industry: lenderData.entityType,
-            isSME: lenderData.entityType === "Retailer",
-          },
-          uploads: user.borrowerDetails?.uploads || {},
-          scoreResult: user.borrowerDetails?.scoreResult || null,
-        },
         country: lenderData.jurisdiction,
       });
-      alert("Portal Configuration Saved Successfully");
+      addLogEvent("info", "Portal primary address & corporate details saved to secure cloud backend");
+      alert("Portal configurations and details saved successfully!");
     } catch (error) {
       console.error("Save failed:", error);
     } finally {
@@ -501,7 +553,7 @@ export default function LenderProfile({ user }: LenderProfileProps) {
     setTimeout(() => {
       setIsVerifying(false);
       setIsVerified(true);
-      setStep(2);
+      addLogEvent("success", "Approved institutional credentials node authenticated: unlocked portal operations");
     }, 2500);
   };
 
@@ -514,16 +566,9 @@ export default function LenderProfile({ user }: LenderProfileProps) {
   const completeness = useMemo(() => {
     const files = Object.values(uploads).filter(Boolean).length;
     const fields = Object.values(lenderData).filter(
-      (v) => v !== "" && v !== 0 && (Array.isArray(v) ? v.length > 0 : true),
+      (v) => v !== "" && v !== 0 && (Array.isArray(v) ? v.length > 0 : true)
     ).length;
-    return Math.min(
-      100,
-      Math.round(
-        ((fields + files) /
-          (Object.keys(lenderData).length + Object.keys(uploads).length)) *
-          100,
-      ),
-    );
+    return Math.min(100, Math.round(((fields + files) / (10 + 5)) * 100));
   }, [lenderData, uploads]);
 
   const displaySections = useMemo(() => {
@@ -565,433 +610,294 @@ export default function LenderProfile({ user }: LenderProfileProps) {
 
   return (
     <>
-      <AnimatePresence>
-        {isScannerOpen && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsScannerOpen(false);
-                setScannedItem(null);
-              }}
-              className="absolute inset-0 bg-guava-dark/80 backdrop-blur-md"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-white rounded-[48px] shadow-2xl overflow-hidden border border-gray-100"
-            >
-              <div className="p-8 md:p-10">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3 className="text-2xl font-black tracking-tighter text-guava-dark">
-                      Inventory Pulse Scanner
-                    </h3>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                      Ready to authenticate asset hardware IDs.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setIsScannerOpen(false);
-                      setScannedItem(null);
-                    }}
-                    className="p-3 hover:bg-gray-50 rounded-2xl transition-all text-gray-400 hover:text-guava-dark"
-                  >
-                    <RefreshCw className="w-5 h-5 rotate-45" />
-                  </button>
-                </div>
+      <div id="lender-profile-container" className="py-2 space-y-8 select-none">
+        
+        {/* TOP COMPRESSIVE BAR */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-100">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div id="badge-version" className="px-2.5 py-0.5 bg-guava-orange text-white text-[8px] font-black uppercase tracking-[0.2em] rounded">
+                Lender Core Hub v4.8
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500">
+                <Lock className="w-3.5 h-3.5 text-guava-orange" />
+                Sovereign Node Connection
+              </div>
+            </div>
+            <h2 className="text-4xl font-black tracking-tight text-guava-dark uppercase">
+              Corporate Credit Studio
+            </h2>
+            <p className="text-gray-400 text-xs font-semibold mt-1">
+              Command, scale, and monitor alternative micro-credit corridores for your enterprise workforce.
+            </p>
+          </div>
 
-                <div
-                  id="reader"
-                  className="w-full bg-gray-50 rounded-[32px] overflow-hidden border-2 border-dashed border-gray-200 min-h-[300px] flex items-center justify-center"
-                >
-                  <div className="text-center p-10">
-                    <Scan className="w-12 h-12 text-gray-200 mx-auto mb-4 animate-pulse" />
-                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">
-                      Initializing Optical Relay...
-                    </p>
-                  </div>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {scannedItem && (
-                    <motion.div
-                      key={scannedItem.id}
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -20, opacity: 0 }}
-                      className="mt-8 p-6 bg-guava-green/5 rounded-[32px] border border-guava-green/10 flex items-center gap-6"
-                    >
-                      <div className="w-20 h-20 bg-white rounded-[24px] flex items-center justify-center shadow-inner">
-                        {scannedItem.image ? (
-                          <img
-                            src={scannedItem.image}
-                            alt={scannedItem.name}
-                            className="w-full h-full object-cover rounded-[24px]"
-                          />
-                        ) : (
-                          <Package className="w-8 h-8 text-guava-green" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="px-2 py-0.5 bg-guava-green text-white text-[8px] font-black uppercase rounded">
-                            ID Detected
-                          </span>
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                            #{scannedItem.barcode || scannedItem.id.slice(-6)}
-                          </span>
-                        </div>
-                        <h4 className="text-lg font-black text-guava-dark truncate">
-                          {scannedItem.name}
-                        </h4>
-                        <p className="text-xs font-bold text-guava-orange tracking-tighter">
-                          Current Inventory: {scannedItem.stockQuantity} Units
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <div className="px-4 py-3 bg-guava-green text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Updated
-                        </div>
-                        <p className="text-[8px] font-black text-gray-400 uppercase text-center">
-                          +1 Unit Added
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {!scannedItem && (
-                  <div className="mt-8 text-center bg-gray-50/50 p-6 rounded-[32px] border border-gray-100">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                      Instructions
-                    </p>
-                    <p className="text-[11px] text-gray-500 font-medium leading-relaxed italic">
-                      Hold the asset barcode within the portal's frame. Upon
-                      detection, inventory parameters will automatically
-                      synchronize with the central node.
-                    </p>
+          <div id="profile-node-widget" className="flex items-center gap-4 bg-gray-50 p-3 pr-6 rounded-3xl border border-gray-100 shadow-sm">
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt="Org Logo"
+                className="w-11 h-11 rounded-2xl object-cover shadow-md border"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-2xl bg-guava-orange flex items-center justify-center text-white font-black shadow-md shadow-guava-orange/20 text-xs font-mono">
+                {isVerified ? "AUTH" : "PEND"}
+              </div>
+            )}
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">
+                ORGANIZATIONAL NODE
+              </p>
+              <div className="flex items-center gap-2">
+                <p className={`text-xs font-black uppercase tracking-tight ${isVerified ? 'text-guava-green' : 'text-guava-orange'}`}>
+                  {isVerified ? "Secured Corporate Node" : "Authentication Pending"}
+                </p>
+                {lenderConfig.is2faMandatory && (
+                  <div className="px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded flex items-center gap-1 border border-blue-100">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span className="text-[7px] font-black">2FA</span>
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
+          </div>
+        </div>
+
+        {/* DETECT IF NOT CORE IDENTITY VERIFIED */}
+        {!isVerified && (
+          <div id="kyb-warning-panel" className="p-8 bg-amber-50/50 rounded-[32px] border-2 border-dashed border-amber-300 text-amber-950 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden">
+            <div className="flex flex-col gap-1 text-center md:text-left">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500 text-white text-[8px] font-black uppercase tracking-[0.2em] rounded-full self-center md:self-start">
+                <AlertTriangle className="w-3.5 h-3.5" /> Action Required
+              </span>
+              <h4 className="text-lg font-black text-amber-900 mt-2 tracking-tight">System Node Authentication Pending</h4>
+              <p className="text-xs text-amber-800/80 font-medium max-w-xl">
+                Please visit the <span className="font-bold cursor-pointer underline text-guava-orange" onClick={() => setActiveTab("node")}>Business Node</span> tab to upload security credentials, drag coordinates pin, and authenticate your active liquidity account. Completeness is currently at {completeness}%.
+              </p>
+            </div>
+            <button 
+              onClick={() => setActiveTab("node")}
+              className="px-6 py-3 bg-guava-orange hover:bg-guava-orange/90 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all shrink-0 flex items-center gap-2 shadow-lg shadow-guava-orange/20 border-none"
+            >
+              Verify Node Now <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-guava-dark/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-[40px] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]"
-            >
-              <div className="p-6 md:p-8 overflow-y-auto">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-black tracking-tighter text-guava-dark">
-                      {editingItem
-                        ? "Update Asset Record"
-                        : "Onboard New Inventory"}
-                    </h3>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                      Configure asset availability and market parameters.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    className="p-2.5 hover:bg-gray-50 rounded-xl transition-all text-gray-400 hover:text-guava-dark"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+        {/* HERO METRIC BLOCKS */}
+        <div id="stats-ribbon" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-orange-50 text-guava-orange rounded-2xl flex items-center justify-center">
+              <Banknote className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">
+                Disbursed Corridor Liquidity
+              </p>
+              <h4 className="text-xl font-black text-guava-dark font-mono">
+                ${totalVolumeDisbursed.toLocaleString()}
+              </h4>
+            </div>
+          </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      Product Designation
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-gray-50 border-b-2 border-gray-100 p-3 rounded-xl text-base font-bold outline-none focus:border-guava-orange transition-all"
-                      value={newItem.name}
-                      onChange={(e) =>
-                        setNewItem({ ...newItem, name: e.target.value })
-                      }
-                      placeholder="e.g. Smart Solar Kit X1"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      Asset Category
-                    </label>
-                    <select
-                      className="w-full bg-gray-50 border-b-2 border-gray-100 p-3 rounded-xl text-base font-bold outline-none focus:border-guava-orange transition-all appearance-none"
-                      value={newItem.category}
-                      onChange={(e) =>
-                        setNewItem({ ...newItem, category: e.target.value })
-                      }
+          <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">
+                Active staff borrowers
+              </p>
+              <h4 className="text-xl font-black text-guava-dark font-mono">
+                {activeEmployeeCount} Employees
+              </h4>
+            </div>
+          </div>
+
+          <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-green-50 text-guava-green rounded-2xl flex items-center justify-center">
+              <Percent className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">
+                Default Delinquent rate
+              </p>
+              <h4 className="text-xl font-black text-red-500 font-mono">
+                {defaultRates}
+              </h4>
+            </div>
+          </div>
+
+          <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-0.5">
+                Minimum yields margin
+              </p>
+              <h4 className="text-xl font-black text-guava-green font-mono">
+                {lenderData.minYieldTarget}% Base APR
+              </h4>
+            </div>
+          </div>
+        </div>
+
+        {/* MASTER DUAL-SPLIT NAVIGATION & WORKSPACE CONTAINER */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          
+          {/* NAVIGATION SIDEBAR RAIL - STYLED TO MATCH SCREENSHOTS */}
+          <div className="space-y-6">
+            
+            <div className="bg-white rounded-[32px] p-5 border border-gray-100 shadow-sm space-y-6">
+              
+              {/* GROUP 1: LENDING CENTER */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 px-3 block">
+                  Lending Console
+                </span>
+                <div className="space-y-1">
+                  {[
+                    { id: "dashboard", label: "Credit Dashboard", icon: LayoutDashboard },
+                    { id: "portfolio", label: "Active Portfolios", icon: Briefcase },
+                    { id: "blacklist", label: "Borrower Blacklist", icon: UserX },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      id={`tab-lender-${item.id}`}
+                      onClick={() => setActiveTab(item.id as LenderTab)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-all cursor-pointer text-xs font-semibold ${
+                        activeTab === item.id
+                          ? "bg-gray-100/80 text-gray-900 font-bold"
+                          : "text-gray-505 hover:text-slate-900 hover:bg-gray-50/70"
+                      }`}
                     >
-                      <option value="Energy">Energy</option>
-                      <option value="Agriculture">Agriculture</option>
-                      <option value="Retail">Retail</option>
-                      <option value="Consumer">Consumer</option>
-                      <option value="General">General</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      Unit Price (USD)
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full bg-gray-50 border-b-2 border-gray-100 p-3 rounded-xl text-base font-bold outline-none focus:border-guava-orange transition-all"
-                      value={newItem.price}
-                      onChange={(e) =>
-                        setNewItem({
-                          ...newItem,
-                          price: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full bg-gray-50 border-b-2 border-gray-100 p-3 rounded-xl text-base font-bold outline-none focus:border-guava-orange transition-all"
-                        value={newItem.stockQuantity}
-                        onChange={(e) =>
-                          setNewItem({
-                            ...newItem,
-                            stockQuantity: parseInt(e.target.value),
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                        Threshold
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full bg-gray-50 border-b-2 border-yellow-200 p-3 rounded-xl text-base font-bold outline-none focus:border-guava-orange transition-all"
-                        value={newItem.lowStockThreshold}
-                        onChange={(e) =>
-                          setNewItem({
-                            ...newItem,
-                            lowStockThreshold: parseInt(e.target.value),
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      Barcode / SKU
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-gray-50 border-b-2 border-gray-100 p-3 rounded-xl text-base font-bold outline-none focus:border-guava-orange transition-all"
-                      value={newItem.barcode}
-                      onChange={(e) =>
-                        setNewItem({ ...newItem, barcode: e.target.value })
-                      }
-                      placeholder="e.g. 7890123456"
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-                      Market Description
-                    </label>
-                    <textarea
-                      className="w-full bg-gray-50 border-b-2 border-gray-100 p-3 rounded-2xl text-sm font-medium outline-none focus:border-guava-orange transition-all min-h-[60px]"
-                      value={newItem.description}
-                      onChange={(e) =>
-                        setNewItem({ ...newItem, description: e.target.value })
-                      }
-                      placeholder="Briefly describe the asset utility and market positioning..."
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 flex gap-3">
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    className="flex-1 py-3.5 bg-gray-50 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveItem}
-                    className="flex-[2] py-3.5 bg-guava-orange text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-guava-dark transition-all shadow-xl shadow-guava-orange/20"
-                  >
-                    {editingItem
-                      ? "Update Asset Record"
-                      : "Deploy to Inventory"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {isBulkPrintOpen && (
-          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsBulkPrintOpen(false)}
-              className="absolute inset-0 bg-guava-dark/80 backdrop-blur-md"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-4xl bg-white rounded-[48px] shadow-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]"
-            >
-              <div className="p-8 md:p-10 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                <div>
-                  <h3 className="text-2xl font-black tracking-tighter text-guava-dark">
-                    Batch Label Foundry
-                  </h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                    Generating {selectedItemIds.length} unique asset identifiers
-                    for deployment.
-                  </p>
-                </div>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => window.print()}
-                    className="px-6 py-4 bg-guava-orange text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-guava-dark transition-all shadow-lg shadow-guava-orange/20"
-                  >
-                    <Printer className="w-4 h-4" />
-                    Print Batch
-                  </button>
-                  <button
-                    onClick={() => setIsBulkPrintOpen(false)}
-                    className="p-4 hover:bg-gray-50 rounded-2xl transition-all text-gray-400 hover:text-guava-dark"
-                  >
-                    <RefreshCw className="w-5 h-5 rotate-45" />
-                  </button>
+                      <item.icon className="w-4 h-4 shrink-0 text-slate-700" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="p-10 overflow-y-auto print:p-0 print:overflow-visible bg-gray-50/50">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-8 print:grid-cols-3 print:gap-4">
-                  {inventory
-                    .filter((i) => selectedItemIds.includes(i.id))
-                    .map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col items-center text-center space-y-4 print:shadow-none print:border print:border-gray-200"
+              {/* GROUP 2: ORGANIZATION ACCOUNT GROUP (SPEAKS TO ORGANIZATION ADMIN) */}
+              <div className="space-y-2 pt-4 border-t border-gray-105/60">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 px-3 block">
+                  Administration
+                </span>
+                <div className="space-y-1">
+                  {[
+                    { id: "reports", label: "Financial Reports", icon: TrendingUp },
+                    { id: "users", label: "Borrower Directory", icon: Users },
+                    { id: "node", label: "Compliance Settings", icon: Landmark },
+                    { id: "config", label: "Console Settings", icon: Settings },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      id={`tab-org-${item.id}`}
+                      onClick={() => setActiveTab(item.id as LenderTab)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-all cursor-pointer text-xs font-semibold ${
+                        activeTab === item.id
+                          ? "bg-gray-100/80 text-gray-900 font-bold"
+                          : "text-gray-505 hover:text-slate-900 hover:bg-gray-50/70"
+                      }`}
+                    >
+                      <item.icon className="w-4 h-4 shrink-0 text-slate-700" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* NOTIFICATIONS WITH ROUND BLACK PILL BADGE AT THE BOTTOM - IDENTICAL TO SCREENSHOT */}
+              <div className="pt-4 border-t border-gray-105/60">
+                <button
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  className={`w-full flex items-center justify-between px-3 py-3 rounded-2xl transition-all cursor-pointer text-xs font-semibold ${
+                    isNotificationsOpen ? "bg-amber-50 text-amber-900 font-bold" : "text-gray-600 hover:text-slate-900 hover:bg-gray-50/70"
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <Bell className="w-4 h-4 shrink-0 text-slate-700" />
+                    <span>Notifications</span>
+                  </span>
+                  <span className="bg-black text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center font-mono select-none">
+                    {liveLogEvents.length}
+                  </span>
+                </button>
+
+                {/* EXPANDABLE NOTIFICATIONS DRAWER POPOVER IN SIDEBAR PANEL */}
+                {isNotificationsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-3 bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3 overflow-hidden"
+                  >
+                    <div className="flex justify-between items-center text-[9px] font-black uppercase text-slate-400 tracking-wider">
+                      <span>Live Ledger Feed</span>
+                      <button 
+                        onClick={() => {
+                          setLiveLogEvents([]);
+                          addLogEvent("info", "Alert logs purged locally");
+                        }} 
+                        className="text-guava-orange hover:underline cursor-pointer border-none bg-transparent"
                       >
-                        <div className="w-full flex justify-between items-center mb-2">
-                          <span className="px-2 py-0.5 bg-guava-orange text-white text-[7px] font-black uppercase rounded">
-                            HARDWARE ID
-                          </span>
-                          <span className="text-[7px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                            {item.id.slice(-8)}
-                          </span>
-                        </div>
-
-                        <QRCodeCanvas
-                          value={`${window.location.origin}/checkout?productId=${item.id}`}
-                          size={140}
-                          level="H"
-                          includeMargin={false}
-                        />
-
-                        <div className="space-y-1">
-                          <p className="text-[11px] font-black italic text-guava-dark leading-tight line-clamp-1">
-                            {item.name}
-                          </p>
-                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
-                            {item.category}
-                          </p>
-                        </div>
-
-                        <div className="w-full pt-4 border-t border-dashed border-gray-100 flex justify-center">
-                          <div className="flex items-center gap-1 text-[7px] font-black text-guava-orange uppercase tracking-tighter">
-                            <Zap className="w-2.5 h-2.5" />
-                            ACX Deep-Link Enabled
+                        Clear All
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto scroller-hide select-text">
+                      {liveLogEvents.length === 0 ? (
+                        <p className="text-[10px] text-gray-400 text-center font-medium py-2">No active notifications</p>
+                      ) : (
+                        liveLogEvents.map(evt => (
+                          <div key={evt.id} className="text-[9px] leading-relaxed border-b border-gray-100 pb-1.5 last:border-none">
+                            <div className="flex justify-between text-slate-430 font-bold font-mono">
+                              <span>{evt.time}</span>
+                              <span className={`uppercase text-[8px] ${
+                                evt.type === 'success' ? 'text-guava-green' : evt.type === 'warning' ? 'text-red-500' : 'text-blue-500'
+                              }`}>
+                                {evt.type}
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-slate-600 font-medium">{evt.text}</p>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-
-                <div className="mt-12 p-8 bg-guava-dark text-white/50 rounded-[32px] text-center border border-white/5 print:hidden">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">
-                    Label Calibration Instructions
-                  </p>
-                  <p className="text-xs font-medium mt-2 leading-relaxed">
-                    Ensure your printer is set to{" "}
-                    <span className="text-white">100% Scale</span> and{" "}
-                    <span className="text-white">Portrait orientation</span>.
-                    These labels are optimized for permanent adhesive mounting
-                    on physical asset chassis.
-                  </p>
-                </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
               </div>
-            </motion.div>
+
+            </div>
+
           </div>
-        )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {qrItem && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setQrItem(null)}
-              className="absolute inset-0 bg-guava-dark/80 backdrop-blur-md"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-sm bg-white rounded-[48px] shadow-2xl overflow-hidden border border-gray-100 p-10 text-center"
-            >
-              <div className="mb-8">
-                <h3 className="text-xl font-black tracking-tighter text-guava-dark">
-                  {qrItem.name}
-                </h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                  Universal Asset Label
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-8 rounded-[32px] border border-gray-100 flex items-center justify-center mb-8">
-                <QRCodeCanvas
-                  value={`${window.location.origin}/checkout?productId=${qrItem.id}`}
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
+          {/* MAIN WORKING FRAME (THE TABS PRESENTATIONS ENVIRONMENT) */}
+          <div className="lg:col-span-3">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="bg-white rounded-[40px] p-8 md:p-10 border border-gray-100 shadow-xl"
+              >
+                
+                {/* ================================================================= TAB: DASHBOARD ================================================================= */}
+                {activeTab === "dashboard" && (
+                  <div id="tab-dashboard-panel" className="space-y-8">
+                    <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                      <div>
+                        <h3 className="text-lg font-black uppercase tracking-tight text-guava-dark decoration-guava-orange decoration-4 underline-offset-8 underline mb-1">
+                          Lender Operations Dashboard
+                        </h3>
+                        <p className="text-xs text-gray-400 font-semibold">Consolidated micro-credit corridors & liquidity metrics</p>
+                      </div>
+                      <span className="px-3 py-1 bg-green-500/10 text-guava-green rounded-full text-[9px] font-black uppercase tracking-wider border border-green-500/10 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-guava-green rounded-full animate-pulse" /> Live Feed Online
+                      </span>
+                    </div>
 
               <div className="space-y-4">
                 <button
@@ -1244,1245 +1150,949 @@ export default function LenderProfile({ user }: LenderProfileProps) {
                         </div>
                       </div>
 
-                      <div className="space-y-6 mt-6">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Headquarters Physical Address
-                          </label>
-                          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                            <MapPin className="w-5 h-5 text-gray-300" />
-                            <input
-                              className="w-full text-lg font-bold outline-none font-sans"
-                              value={lenderData.hqAddress}
-                              onChange={(e) =>
-                                setLenderData({
-                                  ...lenderData,
-                                  hqAddress: e.target.value,
-                                })
-                              }
-                              placeholder="Full physical headquarters address"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <BusinessLocationMap
-                            physicalAddress={lenderData.hqAddress}
-                            latitude={lenderData.latitude}
-                            longitude={lenderData.longitude}
-                            onLocationSelected={(lat, lng) => {
-                              setLenderData({
-                                ...lenderData,
-                                latitude: lat,
-                                longitude: lng,
-                              });
-                            }}
-                            primaryColor="#f97316"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-xs text-gray-400 font-medium">
-                          All identity fields are secure and preserved on your local node database.
-                        </p>
-                        <button
-                          onClick={saveProfile}
-                          disabled={isSaving}
-                          className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer shadow-lg w-full sm:w-auto justify-center"
-                        >
-                          {isSaving ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Save className="w-4 h-4" />
-                          )}
-                          {user.organizationDetails?.taxId ? "Update Business Profile" : "Create Business Profile"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSection === "liquidity" && (
-                    <div className="space-y-10">
-                      <SectionHeader
-                        title="Capital Allocation & Yield"
-                        subtitle="Define your liquidity deployment limits and performance targets."
-                      />
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Allocated Portal Liquidity (USD)
-                          </label>
-                          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                            <Wallet className="w-5 h-5 text-gray-300" />
-                            <input
-                              type="number"
-                              className="w-full text-3xl font-black font-mono outline-none text-guava-dark"
-                              value={lenderData.liquidityCapacity}
-                              onChange={(e) =>
-                                setLenderData({
-                                  ...lenderData,
-                                  liquidityCapacity: Number(e.target.value),
-                                })
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Target Minimum Yield (Net APR %)
-                          </label>
-                          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                            <Percent className="w-5 h-5 text-gray-300" />
-                            <input
-                              type="number"
-                              step="0.1"
-                              className="w-full text-3xl font-black font-mono outline-none text-guava-orange"
-                              value={lenderData.minYieldTarget}
-                              onChange={(e) =>
-                                setLenderData({
-                                  ...lenderData,
-                                  minYieldTarget: Number(e.target.value),
-                                })
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Risk Threshold Capacity
-                          </label>
-                          <div className="grid grid-cols-3 gap-4 mt-2">
-                            {["LOW", "MEDIUM", "HIGH"].map((risk) => (
-                              <button
-                                key={risk}
-                                onClick={() =>
-                                  setLenderData({
-                                    ...lenderData,
-                                    maxRiskExposure: risk,
-                                  })
-                                }
-                                className={cn(
-                                  "py-4 rounded-2xl text-[10px] font-black tracking-widest transition-all border-2",
-                                  lenderData.maxRiskExposure === risk
-                                    ? "bg-guava-dark text-white border-guava-dark"
-                                    : "bg-white text-gray-300 border-gray-100 hover:border-gray-200",
-                                )}
-                              >
-                                {risk === "LOW"
-                                  ? "CONSERVATIVE (A+)"
-                                  : risk === "MEDIUM"
-                                    ? "BALANCED (B-A+)"
-                                    : "AGGRESSIVE (C-B)"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-xs text-gray-400 font-medium">
-                          All credit parameters and investment margins are updated in real-time.
-                        </p>
-                        <button
-                          onClick={saveProfile}
-                          disabled={isSaving}
-                          className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer shadow-lg w-full sm:w-auto justify-center"
-                        >
-                          {isSaving ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Save className="w-4 h-4" />
-                          )}
-                          Save Progress
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSection === "income" && (
-                    <div className="space-y-10">
-                      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <SectionHeader
-                          title="Profit & Loss Intelligence"
-                          subtitle="Deep-dive exploration of yield performance, revenue vectors, and institutional net income."
-                        />
-
-                        {/* Dynamic Filters Bar */}
-                        <div className="flex flex-wrap items-center gap-3 bg-gray-50 border border-gray-100 p-2 rounded-[28px] mb-8">
-                          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                            <Calendar className="w-3.5 h-3.5 text-guava-orange" />
-                            <select
-                              value={timeRange}
-                              onChange={(e) =>
-                                setTimeRange(e.target.value as TimeRange)
-                              }
-                              className="text-[10px] font-black uppercase tracking-widest outline-none bg-transparent cursor-pointer"
-                            >
-                              <option value="30D">Last 30 Days</option>
-                              <option value="6M">Last 6 Months</option>
-                              <option value="1Y">Last Year</option>
-                              <option value="ALL">All Time</option>
-                            </select>
-                          </div>
-
-                          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                            <Package className="w-3.5 h-3.5 text-guava-orange" />
-                            <select
-                              value={assetClass}
-                              onChange={(e) =>
-                                setAssetClass(e.target.value as AssetClass)
-                              }
-                              className="text-[10px] font-black uppercase tracking-widest outline-none bg-transparent cursor-pointer"
-                            >
-                              <option value="ALL">All Asset Classes</option>
-                              <option value="Energy">Energy</option>
-                              <option value="Agriculture">Agriculture</option>
-                              <option value="Retailer">Retailer</option>
-                              <option value="Retail">Retail</option>
-                              <option value="Consumer">Consumer</option>
-                            </select>
-                          </div>
-
-                          <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                            <MapPin className="w-3.5 h-3.5 text-guava-orange" />
-                            <select
-                              value={regionFilter}
-                              onChange={(e) =>
-                                setRegionFilter(e.target.value as Region)
-                              }
-                              className="text-[10px] font-black uppercase tracking-widest outline-none bg-transparent cursor-pointer"
-                            >
-                              <option value="ALL">All Regions</option>
-                              <option value="East Africa">East Africa</option>
-                              <option value="Central Europe">
-                                Central Europe
-                              </option>
-                              <option value="Southeast Asia">
-                                Southeast Asia
-                              </option>
-                              <option value="Southern Africa">
-                                Southern Africa
-                              </option>
-                            </select>
-                          </div>
-
-                          <div className="flex items-center gap-3 px-4 py-2 bg-white rounded-2xl border border-gray-100 shadow-sm min-w-[200px]">
-                            <div className="flex items-center gap-2">
-                              <SlidersHorizontal className="w-3.5 h-3.5 text-guava-orange" />
-                              <span className="text-[10px] font-black uppercase tracking-widest min-w-[100px]">
-                                Min ACX: {minCreditScore}
-                              </span>
-                            </div>
-                            <input
-                              type="range"
-                              min="300"
-                              max="900"
-                              step="10"
-                              value={minCreditScore}
-                              onChange={(e) =>
-                                setMinCreditScore(parseInt(e.target.value))
-                              }
-                              className="w-20 accent-guava-orange h-1 cursor-pointer"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 col-span-2">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-2">
-                            Net Institutional Profit ({timeRange})
-                          </p>
-                          <div className="flex items-end gap-3">
-                            <p className="text-4xl font-black text-guava-dark tracking-tighter">
-                              ${filteredIntelligence.profit}K
-                            </p>
-                            <div className="flex items-center gap-1 text-guava-green text-[10px] font-black mb-1 bg-guava-green/10 px-2 py-0.5 rounded-full">
-                              <TrendingUp className="w-3 h-3" />
-                              {filteredIntelligence.trend}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-2">
-                            Portfolio Yield
-                          </p>
-                          <p className="text-2xl font-black text-guava-orange">
-                            {filteredIntelligence.yield}%
-                          </p>
-                          <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase">
-                            Target: 8.5%
-                          </p>
-                        </div>
-                        <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                          <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-2">
-                            Total Revenue
-                          </p>
-                          <p className="text-2xl font-black text-guava-dark tracking-tighter">
-                            ${filteredIntelligence.revenue}K
-                          </p>
-                          <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase">
-                            {timeRange === "30D" ? "Monthly" : "Period"} Orbit
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                              <Activity className="w-3 h-3 text-guava-orange" />
-                              Revenue vs Expenses (USD) - {assetClass} /{" "}
-                              {regionFilter}
-                            </h4>
-                          </div>
-                          <div className="h-[300px] w-full border border-gray-100 rounded-[32px] p-4 bg-white">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={filteredIntelligence.chartData}>
-                                <defs>
-                                  <linearGradient
-                                    id="colorRevenue"
-                                    x1="0"
-                                    y1="0"
-                                    x2="0"
-                                    y2="1"
-                                  >
-                                    <stop
-                                      offset="5%"
-                                      stopColor="#f36d38"
-                                      stopOpacity={0.1}
-                                    />
-                                    <stop
-                                      offset="95%"
-                                      stopColor="#f36d38"
-                                      stopOpacity={0}
-                                    />
-                                  </linearGradient>
-                                </defs>
-                                <CartesianGrid
-                                  strokeDasharray="3 3"
-                                  vertical={false}
-                                  stroke="#f1f5f9"
-                                />
-                                <XAxis dataKey="month" hide />
-                                <YAxis hide />
-                                <RechartsTooltip
-                                  contentStyle={{
-                                    borderRadius: "24px",
-                                    border: "none",
-                                    boxShadow:
-                                      "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                                    fontStyle: "italic",
-                                    fontWeight: "bold",
-                                  }}
-                                />
-                                <Area
-                                  type="monotone"
-                                  dataKey="revenue"
-                                  stroke="#f36d38"
-                                  strokeWidth={4}
-                                  fillOpacity={1}
-                                  fill="url(#colorRevenue)"
-                                />
-                                <Area
-                                  type="monotone"
-                                  dataKey="expenses"
-                                  stroke="#1e293b"
-                                  strokeWidth={2}
-                                  fill="transparent"
-                                  strokeDasharray="5 5"
-                                />
-                              </AreaChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                            <PieChartIcon className="w-3 h-3 text-guava-orange" />
-                            Income Distribution
-                          </h4>
-                          <div className="h-[300px] w-full border border-gray-100 rounded-[32px] p-4 bg-white flex items-center">
-                            <div className="flex-1 h-full">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                  <Pie
-                                    data={REVENUE_STREAMS}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                  >
-                                    {REVENUE_STREAMS.map((entry, index) => (
-                                      <Cell
-                                        key={`cell-${index}`}
-                                        fill={entry.color}
-                                      />
-                                    ))}
-                                  </Pie>
-                                  <RechartsTooltip />
-                                </PieChart>
-                              </ResponsiveContainer>
-                            </div>
-                            <div className="flex-1 space-y-3 pr-4">
-                              {REVENUE_STREAMS.map((item, i) => (
-                                <div
-                                  key={i}
-                                  className="flex items-center justify-between"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="w-2 h-2 rounded-full"
-                                      style={{ backgroundColor: item.color }}
-                                    />
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
-                                      {item.name}
-                                    </span>
+                                      <div className="pt-4 border-t border-slate-200 space-y-3">
+                                        <div className="space-y-1">
+                                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Record Custom Repayment Amount ($)</label>
+                                          <input
+                                            type="number"
+                                            id="custom-repay-amount-input"
+                                            placeholder="e.g. 250"
+                                            className="w-full text-xs font-mono font-bold bg-white border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-guava-orange"
+                                          />
+                                        </div>
+                                        <button
+                                          onClick={() => {
+                                            const input = document.getElementById("custom-repay-amount-input") as HTMLInputElement;
+                                            const val = Math.round((parseFloat(input?.value) || 0) * 100) / 100;
+                                            if (val <= 0) {
+                                              alert("Repayment payload invalid: Enter amount greater than zero.");
+                                              return;
+                                            }
+                                            handleLogCustomRepayment(selectedRepayLoanId, val);
+                                            if (input) input.value = "";
+                                          }}
+                                          className="w-full py-2.5 bg-guava-orange text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-sm shadow-guava-orange/10 cursor-pointer border-none"
+                                        >
+                                          Submit Repayment Segment
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                                
+                                {!selectedRepayLoanId && (
+                                  <div className="text-center py-6 text-slate-400 font-bold">
+                                    <p className="text-[10px] font-bold uppercase">No Corridor Selection</p>
+                                    <p className="text-[9px] mt-1 font-semibold">Select a borrower corridor above to register instant installments or record repayments.</p>
                                   </div>
-                                  <span className="text-xs font-black text-guava-dark">
-                                    {item.value}%
+                                )}
+                              </div>
+
+                              {/* Right detailed list in repayments */}
+                              <div className="lg:col-span-2 space-y-4">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                                    {selectedRepayLoanId ? "Installment Amortization Milestones" : "Global Repayments Amortization Matrix"}
+                                  </h4>
+                                  <span className="text-[9px] font-black text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded uppercase">
+                                    {selectedRepayLoanId 
+                                      ? `Filtered: ${repaymentsList.filter(r => r.loanId === selectedRepayLoanId).length} Payments` 
+                                      : `${repaymentsList.length} total payments`
+                                    }
                                   </span>
                                 </div>
-                              ))}
+
+                                <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                                  <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-50 border-b border-gray-100 text-[9px] font-black uppercase tracking-wider text-slate-505">
+                                      <tr>
+                                        <th className="p-4">Staff Member</th>
+                                        <th className="p-4">Due Date</th>
+                                        <th className="p-4">Corridor Owed</th>
+                                        <th className="p-4">Milestone Status</th>
+                                        <th className="p-4 text-right">Quick Intervention</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-xs font-semibold text-slate-700 divide-y divide-gray-50">
+                                      {(selectedRepayLoanId 
+                                        ? repaymentsList.filter(r => r.loanId === selectedRepayLoanId)
+                                        : repaymentsList
+                                      ).map((repay, idx) => {
+                                        const associatedLoan = loansList.find(l => l.id === repay.loanId);
+                                        const borrowerUid = associatedLoan?.borrowerId || "unknown";
+                                        const emp = customUsers.find(u => u.uid === borrowerUid) || { displayName: `Staff Node ID: ${borrowerUid.slice(0, 5)}` };
+                                        
+                                        return (
+                                          <tr key={repay.id || idx} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="p-4">
+                                              <p className="font-bold text-guava-dark">{emp.displayName}</p>
+                                              <p className="text-[8px] font-mono text-slate-400">{associatedLoan?.purpose ? associatedLoan.purpose.slice(0, 24) : "Micro Loan"}...</p>
+                                            </td>
+                                            <td className="p-4 font-mono font-bold text-slate-500">{repay.dueDate}</td>
+                                            <td className="p-4 font-mono font-black">${repay.amount.toFixed(2)}</td>
+                                            <td className="p-4">
+                                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                                repay.status === "PAID" ? "bg-green-100 text-guava-green" :
+                                                repay.status === "OVERDUE" ? "bg-red-100 text-red-600 animate-pulse" :
+                                                "bg-amber-100 text-amber-600"
+                                              }`}>
+                                                {repay.status}
+                                              </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                              {repay.status !== "PAID" ? (
+                                                <button
+                                                  onClick={() => handleSurgicalPayRepayment(repay.id)}
+                                                  className="px-2.5 py-1 bg-guava-dark hover:bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer border-none"
+                                                >
+                                                  Instant Settle
+                                                </button>
+                                              ) : (
+                                                <span className="text-[8px] font-bold text-guava-green font-mono">Completed ✓</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-8 bg-guava-orange rounded-[40px] text-white">
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-guava-orange">
-                            <DollarSign className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <h5 className="text-xl font-black tracking-tight">
-                              Institutional Net Analysis
-                            </h5>
-                            <p className="text-[10px] opacity-60 font-black uppercase tracking-widest">
-                              Portal performance forecast for next 90 days
-                            </p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                          {[
-                            {
-                              label: "Forecast Profit",
-                              val: "$92.4K",
-                              change: "+12%",
-                              color: "text-guava-green",
-                            },
-                            {
-                              label: "Unrealized Earnings",
-                              val: "$14.2K",
-                              change: "Stable",
-                              color: "text-blue-400",
-                            },
-                            {
-                              label: "Recovery Rate",
-                              val: "99.2%",
-                              change: "+0.1%",
-                              color: "text-guava-green",
-                            },
-                            {
-                              label: "Yield Variance",
-                              val: "-0.3%",
-                              change: "Minor",
-                              color: "text-guava-orange",
-                            },
-                          ].map((stat, i) => (
-                            <div key={i}>
-                              <p className="text-[8px] font-black uppercase tracking-widest opacity-40 mb-1">
-                                {stat.label}
-                              </p>
-                              <p className="text-2xl font-black">
-                                {stat.val}
-                              </p>
-                              <p
-                                className={cn(
-                                  "text-[9px] font-black uppercase mt-1",
-                                  stat.color,
-                                )}
-                              >
-                                {stat.change}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSection === "inventory" && (
-                    <div className="space-y-10">
-                      <div className="flex items-center justify-between">
-                        <SectionHeader
-                          title="Stock & Inventory"
-                          subtitle="Manage high-yield assets available for borrower procurement via credit."
-                        />
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="file"
-                            id="bulk-upload"
-                            className="hidden"
-                            accept=".csv"
-                            onChange={handleBulkUpload}
-                          />
-                          <label
-                            htmlFor="bulk-upload"
-                            className="px-6 py-3 bg-white border border-gray-100 text-guava-dark rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-gray-50 transition-all cursor-pointer shadow-sm"
-                          >
-                            <UploadCloud className="w-4 h-4 text-guava-orange" />
-                            {isUploading ? "Processing..." : "Bulk CSV Upload"}
-                          </label>
-                          <AnimatePresence>
-                            {selectedItemIds.length > 0 && (
-                              <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                                className="flex items-center gap-4 bg-guava-dark p-2 pl-6 rounded-2xl"
-                              >
-                                <span className="text-[9px] font-black text-white/50 uppercase tracking-widest">
-                                  {selectedItemIds.length} Assets Selected
-                                </span>
-                                <button
-                                  onClick={handleBulkPrint}
-                                  className="px-6 py-2 bg-guava-orange text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all shadow-lg"
-                                >
-                                  <Printer className="w-3.5 h-3.5" />
-                                  Print selected Labels
-                                </button>
-                                <button
-                                  onClick={() => setSelectedItemIds([])}
-                                  className="pr-4 text-[9px] font-bold text-white/40 hover:text-white transition-all uppercase"
-                                >
-                                  Cancel
-                                </button>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-
-                          <button
-                            onClick={() => setIsScannerOpen(true)}
-                            className="px-6 py-3 bg-white border border-gray-100 text-guava-dark rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-gray-50 transition-all cursor-pointer shadow-sm"
-                          >
-                            <Scan className="w-4 h-4 text-guava-orange" />
-                            Hardware Scan
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingItem(null);
-                              setNewItem({
-                                name: "",
-                                category: "General",
-                                price: 0,
-                                currency: "USD",
-                                description: "",
-                                stockQuantity: 0,
-                                lowStockThreshold: 5,
-                              });
-                              setIsModalOpen(true);
-                            }}
-                            className="px-6 py-3 bg-guava-orange text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all shadow-lg shadow-guava-orange/20"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Onboard Asset
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-8 rounded-[40px] border border-gray-100 mb-10">
-                        <div className="flex flex-col justify-center">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
-                            Total Estimated Inventory Value
-                          </p>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-4xl font-black text-guava-dark tracking-tighter">
-                              ${inventoryStats.totalValue.toLocaleString()}
-                            </span>
-                            <span className="text-sm font-bold text-gray-400">
-                              USD
-                            </span>
-                          </div>
-                          <div className="mt-4 flex items-center gap-2">
-                            <div className="px-2 py-0.5 bg-guava-green/10 text-guava-green text-[10px] font-black rounded-full uppercase">
-                              Liquid Assets
-                            </div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              {inventory.length} Active SKUs
-                            </span>
-                          </div>
-                        </div>
-                        <div className="h-[120px] w-full bg-white rounded-3xl border border-gray-100 p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">
-                              Category Distribution
-                            </span>
-                            <BarChartIcon className="w-3 h-3 text-guava-orange" />
-                          </div>
-                          <ResponsiveContainer width="100%" height="80%">
-                            <BarChart data={inventoryStats.distributionData}>
-                              <CartesianGrid
-                                strokeDasharray="3 3"
-                                vertical={false}
-                              />
-                              <XAxis dataKey="name" hide />
-                              <YAxis hide />
-                              <RechartsTooltip
-                                contentStyle={{
-                                  borderRadius: "12px",
-                                  border: "none",
-                                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                                  fontSize: "10px",
-                                  fontWeight: "bold",
-                                }}
-                                cursor={{ fill: "transparent" }}
-                              />
-                              <Bar
-                                dataKey="count"
-                                fill="#f36d38"
-                                radius={[4, 4, 0, 0]}
-                              />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-
-                      <div className="relative mb-8">
-                        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
-                          <Search className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Filter inventory by product name or category..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full bg-white border border-gray-100 rounded-[32px] py-6 pl-14 pr-8 text-sm font-bold text-guava-dark focus:ring-2 focus:ring-guava-orange/20 focus:border-guava-orange transition-all shadow-sm placeholder:text-gray-300"
-                        />
-                        {searchQuery && (
-                          <div className="absolute inset-y-0 right-6 flex items-center">
-                            <button
-                              onClick={() => setSearchQuery("")}
-                              className="p-2 hover:bg-gray-50 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-guava-dark transition-all"
-                            >
-                              Clear
-                            </button>
                           </div>
                         )}
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredInventory.length > 0 ? (
-                          filteredInventory.map((item) => {
-                            const isLowStock =
-                              item.stockQuantity < item.lowStockThreshold;
-                            const isSelected = selectedItemIds.includes(
-                              item.id,
-                            );
-                            return (
-                              <div
-                                key={item.id}
-                                className={cn(
-                                  "bg-white border rounded-[40px] overflow-hidden group hover:shadow-xl transition-all p-2 relative",
-                                  isLowStock
-                                    ? "border-yellow-400 bg-yellow-50/10"
-                                    : "border-gray-100",
-                                  isSelected
-                                    ? "ring-2 ring-guava-orange border-guava-orange"
-                                    : "",
-                                )}
-                              >
-                                {/* Selection Overlay */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleItemSelection(item.id);
-                                  }}
-                                  className={cn(
-                                    "absolute top-6 left-6 z-20 w-8 h-8 rounded-xl flex items-center justify-center transition-all border-2",
-                                    isSelected
-                                      ? "bg-guava-orange border-guava-orange text-white"
-                                      : "bg-white/80 backdrop-blur border-white/50 text-transparent hover:border-guava-orange",
-                                  )}
-                                >
-                                  <CheckCircle2 className="w-5 h-5" />
-                                </button>
-
-                                <div className="relative h-48 bg-gray-50 rounded-[32px] overflow-hidden">
-                                  {item.image ? (
-                                    <img
-                                      src={item.image}
-                                      alt={item.name}
-                                      className="w-full h-full object-cover"
+                        {loanManagerTab === "calculator" && (
+                          <div className="space-y-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                              {/* Left parameters */}
+                              <div className="lg:col-span-4 space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Dynamic Amortization Simulator</h4>
+                                
+                                <div className="space-y-4">
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Principal Volume Amount ($)</label>
+                                    <input
+                                      type="number"
+                                      value={calcPrincipal}
+                                      onChange={(e) => setCalcPrincipal(Math.max(0, parseFloat(e.target.value) || 0))}
+                                      className="w-full text-xs font-mono font-black border border-gray-200 rounded-xl px-3 py-2.5 bg-transparent"
                                     />
-                                  ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-200">
-                                      <ImageIcon className="w-12 h-12 mb-2" />
-                                      <p className="text-[10px] font-black uppercase">
-                                        No Preview Data
-                                      </p>
-                                    </div>
-                                  )}
-                                  <div className="absolute top-4 right-4 px-3 py-1.5 bg-white/90 backdrop-blur rounded-xl text-[10px] font-black text-guava-dark">
-                                    {item.category}
                                   </div>
-                                  {isLowStock && (
-                                    <div className="absolute bottom-4 left-4 right-4 p-3 bg-yellow-400 text-guava-dark rounded-2xl flex items-center gap-2 shadow-lg animate-pulse">
-                                      <AlertTriangle className="w-4 h-4" />
-                                      <span className="text-[10px] font-black uppercase tracking-tighter">
-                                        Low Stock Warning
-                                      </span>
-                                    </div>
-                                  )}
+
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Annual Interest rate APR (%)</label>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      value={calcInterest}
+                                      onChange={(e) => setCalcInterest(Math.max(0, parseFloat(e.target.value) || 0))}
+                                      className="w-full text-xs font-mono font-black border border-gray-200 rounded-xl px-3 py-2.5 bg-transparent"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Amortization Term Duration (Months)</label>
+                                    <input
+                                      type="number"
+                                      value={calcTermMonths}
+                                      onChange={(e) => setCalcTermMonths(Math.max(1, parseInt(e.target.value) || 0))}
+                                      className="w-full text-xs font-mono font-black border border-gray-200 rounded-xl px-3 py-2.5 bg-transparent"
+                                    />
+                                  </div>
                                 </div>
 
-                                <div className="p-6 space-y-4">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <h6 className="text-lg font-black text-guava-dark leading-tight">
-                                        {item.name}
-                                      </h6>
-                                      <p className="text-[10px] font-black text-guava-orange uppercase tracking-widest mt-1">
-                                        {item.price} {item.currency}{" "}
-                                        <span className="text-gray-300 mx-1">
-                                          |
-                                        </span>{" "}
-                                        {item.stockQuantity} Units
-                                      </p>
-                                      {isLowStock && (
-                                        <p className="text-[9px] font-bold text-yellow-600 uppercase mt-1">
-                                          Threshold: {item.lowStockThreshold}{" "}
-                                          units
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="flex gap-1">
-                                      <button
-                                        onClick={() => setQrItem(item)}
-                                        className="p-2 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-guava-dark transition-all"
-                                        title="Generate Asset QR"
-                                      >
-                                        <QrCode className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        onClick={() => handleEditItem(item)}
-                                        className="p-2 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-guava-dark transition-all"
-                                      >
-                                        <Edit3 className="w-4 h-4" />
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          handleDeleteItem(item.id)
-                                        }
-                                        className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-all"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
-                                    </div>
+                                <div className="pt-4 border-t border-slate-200 space-y-2">
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-400 font-bold">Estimated Monthly Installment:</span>
+                                    <span className="font-mono font-black text-guava-orange text-sm">${calculatedInstallment.toFixed(2)}</span>
                                   </div>
-                                  <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-                                    {item.description}
-                                  </p>
-                                  <div className="pt-2 flex items-center justify-between border-t border-gray-50 mt-4">
-                                    <div className="flex items-center gap-1 text-[9px] font-black text-gray-400 uppercase">
-                                      <Activity className="w-3 h-3" />
-                                      Market Trend: Stable
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-400 font-bold">Cumulative Interest Fee:</span>
+                                    <span className="font-mono font-black text-guava-dark">${calculatedTotalInterest.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-400 font-bold">Aggregate Repayment Sum:</span>
+                                    <span className="font-mono font-black text-slate-800">${calculatedTotalPayable.toFixed(2)}</span>
+                                  </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-slate-200 space-y-3">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Directly Disburse Sandbox Simulator Loan</label>
+                                  <select
+                                    id="sandbox-borrower-select"
+                                    className="w-full text-xs font-bold bg-white border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-guava-orange appearance-none"
+                                  >
+                                    <option value="">-- Choose Sandbox Target --</option>
+                                    {customUsers.filter(u => !u.isBlacklisted).map(u => (
+                                      <option key={u.uid} value={u.uid}>{u.displayName} ({u.department})</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => {
+                                      const select = document.getElementById("sandbox-borrower-select") as HTMLSelectElement;
+                                      const borrowerId = select?.value;
+                                      if (!borrowerId) {
+                                        alert("Sandbox generation blocked: Please choose target staff corridor first.");
+                                        return;
+                                      }
+                                      handleSimulatedDisbursal(borrowerId, calcPrincipal, calcInterest, calcTermMonths);
+                                      if (select) select.value = "";
+                                    }}
+                                    className="w-full py-2.5 bg-guava-dark text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-colors shadow-sm cursor-pointer border-none"
+                                  >
+                                    ⚡ Disburse simulated Loan
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* RightSchedule Chart */}
+                              <div className="lg:col-span-8 space-y-4">
+                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Generated Monthly Amortization Table</h4>
+                                <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm max-h-[380px] overflow-y-auto">
+                                  <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-50 border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-slate-500 sticky top-0 z-10 w-full">
+                                      <tr>
+                                        <th className="p-3">Month</th>
+                                        <th className="p-3">Installment Payment</th>
+                                        <th className="p-3">Towards Principal</th>
+                                        <th className="p-3">Towards Interest</th>
+                                        <th className="p-3 text-right">Outstanding Principal</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="text-xs font-semibold text-slate-700 divide-y divide-gray-50">
+                                      {amortizationSchedule.map((row) => (
+                                        <tr key={row.month} className="hover:bg-slate-50/35 transition-colors">
+                                          <td className="p-3 font-bold">Month {row.month}</td>
+                                          <td className="p-3 font-mono">${row.payment.toFixed(2)}</td>
+                                          <td className="p-3 font-mono text-guava-green">${row.principal.toFixed(2)}</td>
+                                          <td className="p-3 font-mono text-amber-500">${row.interest.toFixed(2)}</td>
+                                          <td className="p-3 font-mono text-right font-black">${row.balance.toFixed(2)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {loanManagerTab === "notifications" && (
+                          <div className="space-y-6">
+                            <div className="flex justify-between items-center pb-2">
+                              <div>
+                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Automated Installment Delinquency Alerts</h4>
+                                <p className="text-[10px] text-gray-400 font-semibold mt-1">Pending and delinquent milestones inside active employee corridors</p>
+                              </div>
+                              <span className="text-[9px] font-black uppercase bg-red-50 border border-red-100 text-red-600 px-2 py-0.5 rounded">
+                                {repaymentsList.filter(r => r.status === "OVERDUE").length} OVERDUE
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                              {/* Left Column: Alerts feed */}
+                              <div className="md:col-span-2 space-y-4">
+                                {repaymentsList.filter(r => r.status === "OVERDUE" || r.status === "PENDING").length === 0 ? (
+                                  <div className="bg-green-50 p-6 rounded-3xl border border-green-100/50 text-center text-slate-600 space-y-2">
+                                    <p className="text-xs font-black uppercase tracking-wider text-guava-green">✓ System Portfolios are perfect</p>
+                                    <p className="text-[10px] text-gray-400 font-semibold">Zero pending calculations or overdue warnings recorded inside security corridor.</p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {repaymentsList
+                                      .filter(r => r.status === "OVERDUE" || r.status === "PENDING")
+                                      .map((repay) => {
+                                        const associatedLoan = loansList.find(l => l.id === repay.loanId);
+                                        const borrowerUid = associatedLoan?.borrowerId || "unknown";
+                                        const emp = customUsers.find(u => u.uid === borrowerUid) || { displayName: `Staff ID: ${borrowerUid.slice(0, 5)}` };
+                                        
+                                        return (
+                                          <div key={repay.id} className={`p-5 rounded-3xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${
+                                            repay.status === "OVERDUE" 
+                                              ? "bg-red-50/30 border-red-100/80 hover:bg-red-50/50" 
+                                              : "bg-amber-50/30 border-amber-100/80 hover:bg-amber-50/50"
+                                          }`}>
+                                            <div className="space-y-1.5">
+                                              <div className="flex items-center gap-2">
+                                                <span className={`w-2.5 h-2.5 rounded-full ${
+                                                  repay.status === "OVERDUE" ? "bg-red-500 animate-pulse" : "bg-amber-500"
+                                                }`} />
+                                                <h5 className="text-xs font-black text-guava-dark">{emp.displayName}</h5>
+                                                <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                                  repay.status === "OVERDUE" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"
+                                                }`}>
+                                                  {repay.status}
+                                                </span>
+                                              </div>
+                                              <p className="text-xs font-semibold text-slate-600 font-bold">
+                                                Authorized payout amount <span className="font-mono font-black text-slate-800">${repay.amount.toFixed(2)}</span> is scheduled on <span className="font-mono text-slate-500">{repay.dueDate}</span>
+                                              </p>
+                                              <p className="text-[9px] text-gray-400 font-semibold">
+                                                Corridor purpose: {associatedLoan?.purpose || "Active Micro Credit Allocation"}
+                                              </p>
+                                            </div>
+                                            
+                                            <button
+                                              onClick={() => handleDispatchWarningNotification(repay, emp.displayName)}
+                                              className={`w-full sm:w-auto px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer border-none ${
+                                                repay.status === "OVERDUE"
+                                                  ? "bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                                                  : "bg-slate-800 hover:bg-slate-900 text-white"
+                                              }`}
+                                            >
+                                              Notify Borrower
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Right column: Notification simulator logs dashboard */}
+                              <div className="md:col-span-1 space-y-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Notification Logs Channel</h4>
+                                <p className="text-[10px] text-slate-400 font-semibold font-bold">Active warning signals transmitted across system corridors</p>
+                                
+                                <div className="space-y-3 max-h-64 overflow-y-auto pt-2 border-t border-slate-200">
+                                  <div className="p-3 bg-white rounded-2xl border border-slate-100 text-[10px] space-y-1">
+                                    <div className="flex justify-between items-center font-mono text-[8px] text-slate-400">
+                                      <span>NOTICE DISPATCH #09</span>
+                                      <span>02 MINS AGO</span>
                                     </div>
-                                    <div
-                                      className={cn(
-                                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-full",
-                                        isLowStock
-                                          ? "bg-yellow-400/20 text-yellow-600"
-                                          : "bg-guava-green/10 text-guava-green",
-                                      )}
-                                    >
-                                      {isLowStock
-                                        ? "Reorder Urgent"
-                                        : "In Stock"}
+                                    <p className="font-extrabold text-slate-700">Notice pushed to Soka Kamwendo</p>
+                                    <p className="text-slate-500 font-medium text-[9px]">Instalment: $141.00. Status: PENDING (Scheduled 3 days from now)</p>
+                                  </div>
+
+                                  <div className="p-3 bg-white rounded-2xl border border-slate-100 text-[10px] space-y-1">
+                                    <div className="flex justify-between items-center font-mono text-[8px] text-slate-400">
+                                      <span>WARN TRANSCEPT #01</span>
+                                      <span>12 HOURS AGO</span>
                                     </div>
+                                    <p className="font-extrabold text-red-600">Sovereign Notice push to Thoko Moyo</p>
+                                    <p className="text-slate-500 font-medium text-[9px]">Instalment: $167.50 is OVERDUE by 75 days. Legal trace initialized.</p>
                                   </div>
                                 </div>
                               </div>
-                            );
-                          })
-                        ) : (
-                          <div className="col-span-full py-20 bg-gray-50/50 rounded-[48px] border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
-                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-gray-300 mb-4 shadow-sm">
-                              <Search className="w-8 h-8 opacity-20" />
                             </div>
-                            <h5 className="text-xl font-black text-gray-400">
-                              No matching assets found
-                            </h5>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 max-w-xs px-4">
-                              We couldn't find any items matching "{searchQuery}
-                              " in your current inventory. Try a different
-                              search term.
-                            </p>
-                            <button
-                              onClick={() => setSearchQuery("")}
-                              className="mt-6 px-6 py-3 bg-white border border-gray-200 text-guava-dark rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm"
-                            >
-                              Reset Filter
-                            </button>
                           </div>
                         )}
                       </div>
+                    ) : (
+                      <div className="space-y-10 animate-fade-in">
+                        <div className="flex justify-between items-center pb-2">
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Compliance credentials &amp; Verification</h4>
+                            <p className="text-xs text-gray-400 font-semibold font-bold">Submit tax articles, physical coordinates on maps and legal KYB data</p>
+                          </div>
+                          <span className="px-3 py-1 bg-white border border-gray-200 rounded-full text-[9px] font-black uppercase tracking-wider text-slate-500">
+                            Completeness: {completeness}%
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {/* Left: Input parameters */}
+                          <div className="space-y-6">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 font-bold">
+                                Entity Name
+                              </label>
+                              <input 
+                                type="text" 
+                                className="w-full text-sm font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 bg-transparent" 
+                                value={lenderData.entityName}
+                                onChange={(e) => setLenderData({ ...lenderData, entityName: e.target.value })}
+                              />
+                            </div>
 
-                      <div className="p-10 bg-gray-50 rounded-[48px] border border-gray-100 flex flex-col md:flex-row items-center gap-8">
-                        <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center text-guava-orange shadow-inner">
-                          <Plus className="w-10 h-10 opaicty-20" />
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 font-bold">
+                                Sovereign TAX ID Register
+                              </label>
+                              <input 
+                                type="text" 
+                                className="w-full text-sm font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 bg-transparent" 
+                                value={lenderData.taxId}
+                                onChange={(e) => setLenderData({ ...lenderData, taxId: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 font-bold">
+                                HQ Physical Location Address
+                              </label>
+                              <input 
+                                type="text" 
+                                className="w-full text-sm font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 bg-transparent" 
+                                value={lenderData.hqAddress}
+                                onChange={(e) => setLenderData({ ...lenderData, hqAddress: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 font-bold font-semibold">Latitude</label>
+                                <input 
+                                  type="number" 
+                                  className="w-full text-xs font-mono font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 bg-transparent" 
+                                  value={lenderData.latitude}
+                                  onChange={(e) => setLenderData({ ...lenderData, latitude: Number(e.target.value) })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 font-bold font-mono">Longitude</label>
+                                <input 
+                                  type="number" 
+                                  className="w-full text-xs font-mono font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 bg-transparent" 
+                                  value={lenderData.longitude}
+                                  onChange={(e) => setLenderData({ ...lenderData, longitude: Number(e.target.value) })}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Map Integration element */}
+                          <div id="map-preview" className="h-[280px] bg-gray-50 border border-gray-100 rounded-3xl overflow-hidden relative shadow-sm">
+                            <BusinessLocationMap 
+                              physicalAddress={lenderData.hqAddress}
+                              latitude={lenderData.latitude}
+                              longitude={lenderData.longitude}
+                              onLocationSelected={(lat, lng) => {
+                                setLenderData({
+                                  ...lenderData,
+                                  latitude: lat,
+                                  longitude: lng
+                                });
+                                addLogEvent("info", `Enterprise Map Pin coordinates updated: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="text-center md:text-left flex-1">
-                          <h5 className="text-2xl font-black text-guava-dark">
-                            Expand your Catalog
-                          </h5>
-                          <p className="text-[11px] text-gray-400 font-medium mt-2 max-w-md">
-                            Connect with manufacturers directly to list their
-                            products on the ACX Portal. Automate
-                            credit-for-product fulfillment with zero collateral
-                            requirements for high-scoring borrowers.
+
+                        <div className="space-y-6">
+                          <SectionHeader 
+                            title="Corporate audit evidence uploads" 
+                            subtitle="Identity Articles, Verification of Capital Assets and legal licenses." 
+                          />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <UploadCard
+                              id="governance"
+                              label="Incorporation document"
+                              active={uploads.governance}
+                              state={uploadProgress.governance}
+                              onFileChosen={(file) => handleFileChosen("governance", file)}
+                            />
+                            <UploadCard
+                              id="proofOfFunds"
+                              label="Proof of credit liquidity"
+                              active={uploads.proofOfFunds}
+                              state={uploadProgress.proofOfFunds}
+                              onFileChosen={(file) => handleFileChosen("proofOfFunds", file)}
+                            />
+                            <UploadCard
+                              id="operatingLicense"
+                              label="Regulatory operating license"
+                              active={uploads.operatingLicense}
+                              state={uploadProgress.operatingLicense}
+                              onFileChosen={(file) => handleFileChosen("operatingLicense", file)}
+                            />
+                            <UploadCard
+                              id="complianceAudit"
+                              label="Third-party audit review"
+                              active={uploads.complianceAudit}
+                              state={uploadProgress.complianceAudit}
+                              onFileChosen={(file) => handleFileChosen("complianceAudit", file)}
+                            />
+                            <UploadCard
+                              id="taxResidency"
+                              label="Tax verification card"
+                              active={uploads.taxResidency}
+                              state={uploadProgress.taxResidency}
+                              onFileChosen={(file) => handleFileChosen("taxResidency", file)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                          <p className="text-xs text-gray-400 font-semibold font-semibold">
+                            {isUploadComplete 
+                              ? "Credentials verification ready: click Authenticate to secure node corridors of the enterprise." 
+                              : "Upload remaining standard items to finish initial regulatory token onboarding."}
                           </p>
+                          
+                          <div className="flex flex-wrap gap-4 w-full sm:w-auto justify-end">
+                            <button 
+                              onClick={clearNodeCache}
+                              className="flex-1 sm:flex-initial px-5 py-3 bg-red-50 text-red-600 border border-red-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                            >
+                              Reset Node Cache
+                            </button>
+                            <button 
+                              onClick={saveProfile}
+                              disabled={isSaving}
+                              className="flex-1 sm:flex-initial px-6 py-3 bg-white text-slate-800 border border-gray-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                            >
+                              <Save className="w-3.5 h-3.5" /> Save details
+                            </button>
+                            <button
+                              onClick={handleVerify}
+                              disabled={isVerifying || !isUploadComplete}
+                              className={`flex-1 sm:flex-initial px-8 py-3 bg-guava-orange text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-guava-orange/90 flex items-center justify-center gap-2 cursor-pointer transition-all border-none ${
+                                !isUploadComplete ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'shadow-lg shadow-guava-orange/20'
+                              }`}
+                            >
+                              {isVerifying ? "Verifying matrix..." : "Authenticate Global Portal"}
+                            </button>
+                          </div>
                         </div>
-                        <button className="px-8 py-5 bg-guava-orange text-white rounded-[24px] text-xs font-black uppercase tracking-widest transition-all">
-                          Registry Sync
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* ================================================================= TAB: BUSINESS PORTFOLIO ================================================================= */}
+                {activeTab === "portfolio" && (
+                  <div id="tab-portfolio-panel" className="space-y-8">
+                    <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                      <div>
+                        <h3 className="text-lg font-black uppercase tracking-tight text-guava-dark decoration-guava-orange decoration-4 underline-offset-8 underline mb-1">
+                          Business Credit Portfolio
+                        </h3>
+                        <p className="text-xs text-gray-400 font-semibold">Active employee corridors and scheduled repayment amortization maps</p>
+                      </div>
+                      
+                      <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100">
+                        <input 
+                          type="text" 
+                          placeholder="Search borrower name..." 
+                          className="px-4 py-1.5 text-xs font-semibold bg-transparent outline-none max-w-44"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* ENHANCED AMORTIZATION LIST */}
+                    <div className="space-y-6">
+                      <div className="border border-gray-100 rounded-[32px] overflow-hidden shadow-sm">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="bg-gray-50 border-b border-gray-100 text-[9px] font-black uppercase tracking-wider text-slate-505">
+                            <tr>
+                              <th className="p-4">Staff Member</th>
+                              <th className="p-4">authorized / APR</th>
+                              <th className="p-4">repayment tenure</th>
+                              <th className="p-4">Amortization progress</th>
+                              <th className="p-4">corridor Status</th>
+                              <th className="p-4 text-center">Operational action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-xs font-semibold text-slate-700 divide-y divide-gray-50">
+                            {loansList
+                              .filter(l => {
+                                const emp = customUsers.find(u => u.uid === l.borrowerId) || { displayName: "" };
+                                return emp.displayName.toLowerCase().includes(searchQuery.toLowerCase());
+                              })
+                              .map((item, idx) => {
+                                const emp = customUsers.find(u => u.uid === item.borrowerId) || { displayName: `Staff ID ${item.borrowerId.slice(0, 6)}`, department: "Operations" };
+                                return (
+                                  <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="p-4">
+                                      <p className="font-bold text-guava-dark">{emp.displayName}</p>
+                                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-wider">{emp.department || "Staff Node"}</p>
+                                    </td>
+                                    <td className="p-4">
+                                      <p className="font-mono font-black">${item.amount.toLocaleString()} USD</p>
+                                      <p className="text-[10px] text-gray-400 font-mono font-bold mr-1">@{item.interestRate}% Interest</p>
+                                    </td>
+                                    <td className="p-4">
+                                      <p>{item.durationMonths} Months</p>
+                                      <p className="text-[9px] font-bold text-slate-400">Term Ends: Q4-2026</p>
+                                    </td>
+                                    <td className="p-4">
+                                      <div className="w-full space-y-1">
+                                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                          <div className={`h-full rounded-full ${
+                                            item.status === LoanStatus.DELINQUENT ? 'bg-red-500' : 'bg-guava-green'
+                                          }`} style={{ width: item.status === LoanStatus.COMPLETED ? '100%' : '60%' }} />
+                                        </div>
+                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider text-right">
+                                          {item.status === LoanStatus.COMPLETED ? 'Paid Complete' : 'Installments 3/6 Paid'}
+                                        </p>
+                                      </div>
+                                    </td>
+                                    <td className="p-4">
+                                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                        item.status === LoanStatus.FUNDED ? "bg-green-500/10 text-guava-green" :
+                                        item.status === LoanStatus.DELINQUENT ? "text-red-500 bg-red-50 animate-pulse" : "text-amber-500 bg-amber-50"
+                                      }`}>
+                                        {item.status}
+                                      </span>
+                                    </td>
+                                    <td className="p-4 text-center">
+                                      <button 
+                                        onClick={() => {
+                                          addLogEvent("info", `dispatched legal trace ping securely for employee ${emp.displayName}`);
+                                          alert(`Legal trace check audit initiated for ${emp.displayName}. Record validated with hash: md5-${Date.now().toString().slice(6)}`);
+                                        }}
+                                        className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer hover:bg-slate-700 hover:scale-[1.02] transition-all border-none"
+                                      >
+                                        Trigger Audit Check
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+                
+                {/* ================================================================= TAB: BLACKLIST ================================================================= */}
+                {activeTab === "blacklist" && (
+                  <div id="tab-blacklist-panel" className="space-y-8">
+                    <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                      <div>
+                        <h3 className="text-lg font-black uppercase tracking-tight text-red-500 decoration-red-500 decoration-4 underline-offset-8 underline mb-1">
+                          Workforce Risk Blacklist
+                        </h3>
+                        <p className="text-xs text-gray-400 font-semibold">Restrict credit permissions and blacklist users with repayment defaults</p>
+                      </div>
+                      <span className="px-3 py-1 bg-red-50 text-red-500 rounded-full text-[9px] font-black uppercase tracking-wider border border-red-100 flex items-center gap-1">
+                        <ShieldAlert className="w-3.5 h-3.5" /> High Risk Protocol Active
+                      </span>
+                    </div>
+
+                    {/* TWO COLUMN WORKSPACE */}
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                      {/* Form: Add Restricted members */}
+                      <form onSubmit={handleAddBlacklist} className="lg:col-span-2 bg-gray-50 border border-gray-100 rounded-3xl p-6 space-y-5 self-start">
+                        <div className="flex items-center gap-2 mb-2">
+                          <UserX className="w-5 h-5 text-red-500" />
+                          <h4 className="text-sm font-black uppercase tracking-wide text-slate-800">Add Restrictive Block</h4>
+                        </div>
+                        
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee email or UID ID</label>
+                          <input 
+                            type="text" 
+                            required
+                            placeholder="e.g. thoko.moyo@guavacorp.com"
+                            className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl bg-white focus:border-red-500 outline-none"
+                            value={blacklistForm.emailOrUid}
+                            onChange={(e) => setBlacklistForm({ ...blacklistForm, emailOrUid: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reason Category</label>
+                          <select 
+                            className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl bg-white focus:border-red-500 outline-none"
+                            value={blacklistForm.category}
+                            onChange={(e) => setBlacklistForm({ ...blacklistForm, category: e.target.value })}
+                          >
+                            <option value="Default Risk">Exceeded Delinquency Bounds (Default Risk)</option>
+                            <option value="Policy Violation">Contract Breach / Policy Violation</option>
+                            <option value="Identity Mismatch">Sovereign KYB Mismatch Error</option>
+                            <option value="Termination">Voluntary/Involuntary Job Termination</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Delinquency Remarks / details</label>
+                          <textarea 
+                            rows={3}
+                            placeholder="Late installment warnings ignored for over 60 days on solar loan..."
+                            className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl bg-white focus:border-red-500 outline-none"
+                            value={blacklistForm.reason}
+                            onChange={(e) => setBlacklistForm({ ...blacklistForm, reason: e.target.value })}
+                          />
+                        </div>
+
+                        <button 
+                          type="submit"
+                          className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] cursor-pointer transition-all border-none"
+                        >
+                          Submit Restriction Block
+                        </button>
+                      </form>
+
+                      {/* Display Active blacklist */}
+                      <div className="lg:col-span-3 space-y-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Blacklisted borrowers</p>
+                        
+                        <div className="space-y-4">
+                          {blacklistedEmployeesList.length === 0 ? (
+                            <div className="p-8 text-center bg-gray-50 border border-gray-100 rounded-3xl">
+                              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">No borrowers are blacklisted inside this enterprise gateway node.</p>
+                            </div>
+                          ) : (
+                            blacklistedEmployeesList.map(item => (
+                              <div key={item.uid} className="p-6 bg-red-50/30 border border-red-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
+                                <div className="space-y-1.5 text-center md:text-left">
+                                  <div className="flex items-center gap-2">
+                                    <h5 className="font-bold text-slate-800 text-sm">{item.displayName}</h5>
+                                    <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded text-[8px] font-black uppercase tracking-widest">
+                                      {item.blacklistCategory || "High Risk default"}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs font-semibold text-slate-505 font-mono">{item.email}</p>
+                                  <p className="text-xs text-red-800 font-medium italic">Reason: {item.blacklistReason || "micro-loan payment delinquency alerts ignored"}</p>
+                                </div>
+                                <button 
+                                  onClick={() => handleRemoveFromBlacklist(item.uid, item.displayName)}
+                                  className="px-4 py-2 bg-white hover:bg-red-50 hover:text-red-600 border border-red-200 text-slate-600 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all shrink-0"
+                                >
+                                  Pardon & Restore Access
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+                
+                {/* ================================================================= TAB: USER MANAGEMENT ================================================================= */}
+                {activeTab === "users" && (
+                  <div id="tab-users-panel" className="space-y-8">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                      <div>
+                        <h3 className="text-lg font-black uppercase tracking-tight text-guava-dark decoration-guava-orange decoration-4 underline-offset-8 underline mb-1">
+                          Workforce Node Directory
+                        </h3>
+                        <p className="text-xs text-gray-400 font-semibold">Allocate credit lines, update roles, and manage employee borrow limits</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 w-full md:w-auto self-start">
+                        <div className="flex bg-gray-50 px-2 py-1.5 rounded-2xl border border-gray-100 w-full sm:w-auto">
+                          <input 
+                            type="text" 
+                            placeholder="Filter employee registry..." 
+                            className="bg-transparent text-xs font-semibold px-2 outline-none w-full sm:w-44"
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                          />
+                        </div>
+                        <button 
+                          onClick={() => setIsAddUserModalOpen(true)}
+                          className="px-5 py-2.5 bg-guava-orange hover:bg-guava-orange/90 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:scale-[1.01] transition-all shrink-0 flex items-center gap-1 border-none font-sans"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" /> Invite Staff Member
                         </button>
                       </div>
                     </div>
-                  )}
 
-                  {activeSection === "delinquency" && (
-                    <div className="space-y-10">
-                      <SectionHeader
-                        title="Delinquency & Default Management"
-                        subtitle="Systematized oversight of overdue positions, warning escalation, and blacklisting portal."
-                      />
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {[
-                          {
-                            label: "Portfolio at Risk (PAR 30)",
-                            val: "12.4%",
-                            status: "Warning",
-                            color: "text-guava-orange",
-                          },
-                          {
-                            label: "Active Defaults",
-                            val: "3 Cases",
-                            status: "Critical",
-                            color: "text-red-500",
-                          },
-                          {
-                            label: "Recovery Rate (YTD)",
-                            val: "94.2%",
-                            status: "Target: 98%",
-                            color: "text-guava-green",
-                          },
-                        ].map((stat, i) => (
-                          <div
-                            key={i}
-                            className="p-8 bg-white border border-gray-100 rounded-[40px] shadow-sm"
-                          >
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
-                              {stat.label}
-                            </p>
-                            <p
-                              className={cn(
-                                "text-3xl font-black",
-                                stat.color,
-                              )}
-                            >
-                              {stat.val}
-                            </p>
-                            <p className="text-[9px] font-black uppercase mt-1 opacity-40">
-                              {stat.status}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="bg-white border border-gray-100 rounded-[48px] overflow-hidden shadow-xl shadow-gray-200/20">
-                        <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
-                          <h4 className="text-[10px] font-black uppercase tracking-widest text-guava-dark flex items-center gap-2">
-                            <Activity className="w-4 h-4 text-guava-orange" />
-                            Active Delinquency Queue
-                          </h4>
-                          <div className="flex gap-2">
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-gray-200 text-[10px] font-bold text-gray-400">
-                              <div className="w-2 h-2 bg-guava-orange rounded-full" />
-                              Stage 1: Reminder
-                            </div>
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-gray-200 text-[10px] font-bold text-gray-400">
-                              <div className="w-2 h-2 bg-guava-orange rounded-full animate-pulse" />
-                              Stage 2: Written
-                            </div>
-                            <div className="flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-gray-200 text-[10px] font-bold text-gray-400">
-                              <div className="w-2 h-2 bg-red-500 rounded-full" />
-                              Stage 3: Final
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left">
-                            <thead>
-                              <tr className="border-b border-gray-50">
-                                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                  Borrower Entity
-                                </th>
-                                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                  Exposure
-                                </th>
-                                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                  Overdue
-                                </th>
-                                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                  Current Status
-                                </th>
-                                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                  Portal Action
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {delinquentLoans.map((loan) => (
-                                <tr
-                                  key={loan.id}
-                                  className="border-b border-gray-50 hover:bg-gray-50/50 transition-all group"
+                    {/* ROSTER TABLE */}
+                    <div className="border border-gray-100 rounded-[32px] overflow-hidden shadow-sm">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50 border-b border-gray-100 text-[9px] font-black uppercase tracking-wider text-slate-550">
+                          <tr>
+                            <th className="p-4">Employee Details</th>
+                            <th className="p-4">corporate Division</th>
+                            <th className="p-4">KYC state</th>
+                            <th className="p-4">Credit Score</th>
+                            <th className="p-4">Authorized limit</th>
+                            <th className="p-4 text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-xs font-semibold text-slate-750 divide-y divide-gray-50">
+                          {filteredEmployeesList.map(item => (
+                            <tr key={item.uid} className={`hover:bg-gray-50/50 transition-colors ${item.isBlacklisted ? 'opacity-50 min-h-[50px]' : ''}`}>
+                              <td className="p-4">
+                                <p className="font-bold text-guava-dark flex items-center gap-1.5">
+                                  {item.displayName}
+                                  {item.isBlacklisted && <span className="px-1.5 py-0.5 bg-red-100 text-[7px] text-red-600 rounded">Restricted</span>}
+                                </p>
+                                <p className="text-[10px] font-mono text-slate-400 font-bold">{item.email}</p>
+                              </td>
+                              <td className="p-4 font-black uppercase text-[10px] tracking-wider text-slate-500">
+                                {item.department || "Operations Node"}
+                              </td>
+                              <td className="p-4">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                  item.kycStatus === 'VERIFIED' ? 'bg-green-500/10 text-guava-green' : 'bg-amber-50 text-orange-500'
+                                }`}>
+                                  {item.kycStatus}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <span className="font-mono font-black">{item.creditScore} AAA</span>
+                              </td>
+                              <td className="p-4">
+                                <span className="font-mono font-black text-guava-orange">${(item.borrowLimit || 2000).toLocaleString()} USD</span>
+                              </td>
+                              <td className="p-4 text-center">
+                                <button 
+                                  onClick={() => openEditUser(item)}
+                                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-colors border-none"
                                 >
-                                  <td className="px-8 py-8">
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-10 h-10 bg-guava-orange text-white rounded-xl flex items-center justify-center font-black italic">
-                                        {loan.borrower[0]}
-                                      </div>
-                                      <div>
-                                        <p className="text-sm font-black text-guava-dark">
-                                          {loan.borrower}
-                                        </p>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">
-                                          ACX Score: {loan.creditScore}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-8 py-8">
-                                    <p className="text-lg font-black text-guava-dark tracking-tighter">
-                                      ${loan.amount.toLocaleString()}
-                                    </p>
-                                    <p className="text-[10px] font-black text-guava-orange uppercase">
-                                      Active Position
-                                    </p>
-                                  </td>
-                                  <td className="px-8 py-8">
-                                    <p className="text-lg font-black text-red-500 tracking-tighter">
-                                      {loan.overdueDays} Days
-                                    </p>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase">
-                                      Sync Latency
-                                    </p>
-                                  </td>
-                                  <td className="px-8 py-8">
-                                    <div
-                                      className={cn(
-                                        "inline-flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
-                                        loan.stage === "INITIAL"
-                                          ? "bg-orange-50 text-guava-orange border border-orange-100"
-                                          : loan.stage === "WRITTEN"
-                                            ? "bg-orange-100 text-guava-dark border border-orange-200"
-                                            : "bg-red-500 text-white shadow-lg shadow-red-500/20",
-                                      )}
-                                    >
-                                      {loan.stage === "INITIAL" && (
-                                        <Bell className="w-3 h-3" />
-                                      )}
-                                      {loan.stage === "WRITTEN" && (
-                                        <Mail className="w-3 h-3" />
-                                      )}
-                                      {loan.stage === "FINAL" && (
-                                        <Activity className="w-3 h-3" />
-                                      )}
-                                      {loan.stage === "BLACKLISTED" && (
-                                        <UserX className="w-3 h-3" />
-                                      )}
-                                      {loan.stage === "INITIAL"
-                                        ? "Initial Warning"
-                                        : loan.stage === "WRITTEN"
-                                          ? "Formal Written"
-                                          : loan.stage === "FINAL"
-                                            ? "Final Demand"
-                                            : "Blacklisted"}
-                                    </div>
-                                  </td>
-                                  <td className="px-8 py-8">
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                                      {loan.stage === "INITIAL" && (
-                                        <button
-                                          onClick={() =>
-                                            setDelinquentLoans((prev) =>
-                                              prev.map((l) =>
-                                                l.id === loan.id
-                                                  ? { ...l, stage: "WRITTEN" }
-                                                  : l,
-                                              ),
-                                            )
-                                          }
-                                          className="p-3 bg-guava-orange text-white rounded-xl transition-all flex items-center gap-2 text-[8px] font-black uppercase tracking-widest"
-                                        >
-                                          <Gavel className="w-3 h-3" />
-                                          Escalate to Written
-                                        </button>
-                                      )}
-                                      {loan.stage === "WRITTEN" && (
-                                        <button
-                                          onClick={() =>
-                                            setDelinquentLoans((prev) =>
-                                              prev.map((l) =>
-                                                l.id === loan.id
-                                                  ? { ...l, stage: "FINAL" }
-                                                  : l,
-                                              ),
-                                            )
-                                          }
-                                          className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all flex items-center gap-2 text-[8px] font-black uppercase tracking-widest shadow-lg shadow-red-500/10"
-                                        >
-                                          <AlertTriangle className="w-3 h-3" />
-                                          Final Demand Notice
-                                        </button>
-                                      )}
-                                      {(loan.stage === "FINAL" ||
-                                        loan.stage === "BLACKLISTED") && (
-                                        <button
-                                          onClick={() =>
-                                            setDelinquentLoans((prev) =>
-                                              prev.map((l) =>
-                                                l.id === loan.id
-                                                  ? {
-                                                      ...l,
-                                                      stage: "BLACKLISTED",
-                                                    }
-                                                  : l,
-                                              ),
-                                            )
-                                          }
-                                          className="p-3 bg-black text-white rounded-xl hover:bg-gray-900 transition-all flex items-center gap-2 text-[8px] font-black uppercase tracking-widest shadow-xl"
-                                        >
-                                          <UserX className="w-3 h-3 text-red-500" />
-                                          Blacklist Permanent
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      <div className="p-10 bg-guava-orange rounded-[48px] text-white overflow-hidden relative">
-                        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                          <div>
-                            <h5 className="text-3xl font-black tracking-tighter mb-4">
-                              Portal Default Protection
-                            </h5>
-                            <p className="text-xs opacity-60 font-medium leading-relaxed max-w-md">
-                              The ACX liquidity layer automatically
-                              de-privileges borrowers based on repayment
-                              latency. Blacklisting triggers a cross-lender
-                              warning visible to all institutional nodes in the
-                              Southeast & East African regions.
-                            </p>
-                            <div className="flex gap-4 mt-8">
-                              <button className="px-6 py-3 bg-white text-guava-orange rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-guava-dark hover:text-white transition-all">
-                                <Download className="w-4 h-4" />
-                                Export Delinquency Log
-                              </button>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="p-6 bg-white/5 border border-white/10 rounded-3xl">
-                              <p className="text-[8px] font-black uppercase tracking-widest opacity-40 mb-1">
-                                Time to Recovery
-                              </p>
-                              <p className="text-xl font-black">
-                                14.2 Days
-                              </p>
-                            </div>
-                            <div className="p-6 bg-white/5 border border-white/10 rounded-3xl">
-                              <p className="text-[8px] font-black uppercase tracking-widest opacity-40 mb-1">
-                                Auto-Legal File
-                              </p>
-                              <p className="text-xl font-black">
-                                Active
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-red-500/10 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
-                      </div>
+                                  Modify bounds
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  )}
 
-                  {activeSection === "mandate" && (
-                    <div className="space-y-10">
-                      <SectionHeader
-                        title="Investment Mandate"
-                        subtitle="Filter opportunities by geography, industry, and asset type."
-                      />
-                      <div className="space-y-8">
-                        <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Geographic Preferences
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            {[
-                              "East Africa",
-                              "West Africa",
-                              "Northern Africa",
-                              "Southern Africa",
-                              "Central Africa",
-                            ].map((reg) => (
-                              <button
-                                key={reg}
-                                className={cn(
-                                  "px-4 py-2 rounded-xl text-[10px] font-bold border transition-all",
-                                  lenderData.regions.includes(reg)
-                                    ? "bg-guava-orange/10 text-guava-orange border-guava-orange"
-                                    : "bg-gray-50 text-gray-400 border-transparent",
-                                )}
-                              >
-                                {reg}
-                              </button>
-                            ))}
-                          </div>
+                  </div>
+                )}
+                
+                {/* ================================================================= TAB: SYSTEM CONFIGURATION ================================================================= */}
+                {activeTab === "config" && (
+                  <div id="tab-config-panel" className="space-y-8">
+                    <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                      <div>
+                        <h3 className="text-lg font-black uppercase tracking-tight text-guava-dark decoration-guava-orange decoration-4 underline-offset-8 underline mb-1">
+                          System configuration
+                        </h3>
+                        <p className="text-xs text-gray-400 font-semibold">Adjust interest APR policies, automated credit metrics and security bounds</p>
+                      </div>
+                      <span className="px-3 py-1 bg-blue-50 text-blue-500 rounded-full text-[9px] font-black uppercase tracking-wider border border-blue-100">
+                        Institutional policies
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Left: General rules */}
+                      <div className="space-y-6 bg-gray-50 border border-gray-100 rounded-3xl p-6 shadow-sm">
+                        <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-2">
+                          <Percent className="w-5 h-5 text-guava-orange" />
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Sovereign rules APR rates</h4>
                         </div>
-                        <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Sector Specialization
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between">
+                            <span>Base Annual Percentage Yield</span>
+                            <span className="font-bold text-guava-orange">{lenderConfig.baseApr}% interest</span>
                           </label>
-                          <div className="flex flex-wrap gap-2">
-                            {[
-                              "Logistics",
-                              "Agriculture",
-                              "Retailer",
-                              "SME Finance",
-                              "Renewable Energy",
-                              "Consumer Goods",
-                            ].map((sec) => (
-                              <button
-                                key={sec}
-                                className={cn(
-                                  "px-4 py-2 rounded-xl text-[10px] font-bold border transition-all",
-                                  lenderData.sectors.includes(sec)
-                                    ? "bg-guava-green/10 text-guava-green border-guava-green"
-                                    : "bg-gray-50 text-gray-400 border-transparent",
-                                )}
-                              >
-                                {sec}
-                              </button>
-                            ))}
-                          </div>
+                          <input 
+                            type="range" 
+                            min="5" 
+                            max="30" 
+                            step="0.1"
+                            className="w-full accent-guava-orange cursor-pointer"
+                            value={lenderConfig.baseApr}
+                            onChange={(e) => setLenderConfig({ ...lenderConfig, baseApr: Number(e.target.value) })}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between">
+                            <span>Max Employee Debt-to-income (DTI) Cap</span>
+                            <span className="font-bold text-slate-800">{lenderConfig.maxDebtToIncome}% of gross salary</span>
+                          </label>
+                          <input 
+                            type="range" 
+                            min="10" 
+                            max="60" 
+                            step="5"
+                            className="w-full accent-slate-800 cursor-pointer"
+                            value={lenderConfig.maxDebtToIncome}
+                            onChange={(e) => setLenderConfig({ ...lenderConfig, maxDebtToIncome: Number(e.target.value) })}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between">
+                            <span>Minimum Auto-Approval rating</span>
+                            <span className="font-bold text-guava-green">FICO SCORE {lenderConfig.autoScoreThreshold}</span>
+                          </label>
+                          <input 
+                            type="range" 
+                            min="500" 
+                            max="850" 
+                            step="5"
+                            className="w-full accent-guava-green cursor-pointer"
+                            value={lenderConfig.autoScoreThreshold}
+                            onChange={(e) => setLenderConfig({ ...lenderConfig, autoScoreThreshold: Number(e.target.value) })}
+                          />
                         </div>
                       </div>
-                    </div>
-                  )}
 
-                  {activeSection === "compliance" && (
-                    <div className="space-y-10">
-                      <SectionHeader
-                        title="Regulatory Portal"
-                        subtitle="Configure automated AML, KYC, and sanctions screening logic."
-                      />
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {[
-                          {
-                            label: "Automatic AML Sync",
-                            desc: "Real-time laundering detection",
-                            icon: Database,
-                          },
-                          {
-                            label: "Sanctions Node Pinging",
-                            desc: "Sync with global restricted lists",
-                            icon: Fingerprint,
-                          },
-                          {
-                            label: "Zero-Knowledge Proofs",
-                            desc: "Verify capacity without disclosing balances",
-                            icon: Lock,
-                          },
-                          {
-                            label: "Tax Residency Sync",
-                            desc: "Automated withholding logic",
-                            icon: Scale,
-                          },
-                        ].map((item, i) => (
-                          <div
-                            key={i}
-                            className="p-6 rounded-[32px] border border-gray-100 flex items-start gap-4 hover:shadow-md transition-all group"
-                          >
-                            <div className="w-10 h-10 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center group-hover:bg-guava-dark group-hover:text-white transition-all">
-                              <item.icon className="w-5 h-5" />
-                            </div>
+                      {/* Right: Security & approval protocols */}
+                      <div className="space-y-6 bg-gray-50 border border-gray-100 rounded-3xl p-6 shadow-sm">
+                        <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-2">
+                          <ShieldCheck className="w-5 h-5 text-guava-green" />
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Security & dispatch rules</h4>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
                             <div>
-                              <p className="text-xs font-black uppercase tracking-tight text-guava-dark">
-                                {item.label}
-                              </p>
-                              <p className="text-[10px] text-gray-400 mt-1 font-medium italic">
-                                {item.desc}
-                              </p>
+                              <p className="text-xs font-bold text-slate-800">MFA & 2FA mandatory check</p>
+                              <p className="text-[9px] text-gray-400 font-medium">Verify employee identity signature via 2FA</p>
                             </div>
-                            <div className="ml-auto">
-                              <div className="w-4 h-4 bg-guava-green rounded-full shadow-[0_0_8px_var(--color-guava-green)]" />
-                            </div>
+                            <input 
+                              type="checkbox" 
+                              className="accent-guava-orange cursor-pointer w-4 h-4"
+                              checked={lenderConfig.is2faMandatory}
+                              onChange={(e) => setLenderConfig({ ...lenderConfig, is2faMandatory: e.target.checked })}
+                            />
                           </div>
-                        ))}
+
+                          <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">Auto-Disbursement triggers</p>
+                              <p className="text-[9px] text-gray-400 font-medium">Automatically dispatch capital once credit checks match</p>
+                            </div>
+                            <input 
+                              type="checkbox" 
+                              className="accent-guava-orange cursor-pointer w-4 h-4"
+                              checked={lenderConfig.autoFundApproval}
+                              onChange={(e) => setLenderConfig({ ...lenderConfig, autoFundApproval: e.target.checked })}
+                            />
+                          </div>
+
+                          <div className="space-y-1.5 pt-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Default Grace Period (Days)</label>
+                            <input 
+                              type="number" 
+                              className="w-full text-xs font-bold px-4 py-2 border border-gray-200 rounded-xl bg-white outline-none"
+                              value={lenderConfig.gracePeriodDays}
+                              onChange={(e) => setLenderConfig({ ...lenderConfig, gracePeriodDays: Number(e.target.value) })}
+                            />
+                            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Maturity delays allowed before late penalties fees trigger.</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  )}
 
-                  {activeSection === "documents" && (
-                    <div className="space-y-10">
-                      <SectionHeader
-                        title="KYB Document Evidence"
-                        subtitle="Immutable evidence for portal authentication."
-                      />
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                        <UploadCard
-                          id="governance"
-                          label="Articles of Incorporation"
-                          active={uploads.governance}
-                          state={uploadProgress.governance}
-                          onFileChosen={(file) => handleFileChosen("governance", file)}
-                        />
-                        <UploadCard
-                          id="proofOfFunds"
-                          label="Verification of Funds"
-                          active={uploads.proofOfFunds}
-                          state={uploadProgress.proofOfFunds}
-                          onFileChosen={(file) => handleFileChosen("proofOfFunds", file)}
-                        />
-                        <UploadCard
-                          id="operatingLicense"
-                          label="Regulatory License"
-                          active={uploads.operatingLicense}
-                          state={uploadProgress.operatingLicense}
-                          onFileChosen={(file) => handleFileChosen("operatingLicense", file)}
-                        />
-                        <UploadCard
-                          id="complianceAudit"
-                          label="External Audit Report"
-                          active={uploads.complianceAudit}
-                          state={uploadProgress.complianceAudit}
-                          onFileChosen={(file) => handleFileChosen("complianceAudit", file)}
-                        />
-                        <UploadCard
-                          id="taxResidency"
-                          label="Tax Residency Certificate"
-                          active={uploads.taxResidency}
-                          state={uploadProgress.taxResidency}
-                          onFileChosen={(file) => handleFileChosen("taxResidency", file)}
-                        />
+                    <div className="pt-6 border-t border-gray-100 flex justify-end">
+                      <button 
+                        onClick={() => {
+                          addLogEvent("success", "System policies re-calibrated successfully: settings pushed to smart pools");
+                          alert("System Configuration saved successfully! Smart liquidity pool parameters were updated instantly.");
+                        }}
+                        className="px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all border-none"
+                      >
+                        Deploy updated bounds
+                      </button>
+                    </div>
+
+                  </div>
+                )}
+                
+                {/* ================================================================= TAB: REPORTS ================================================================= */}
+                {activeTab === "reports" && (
+                  <div id="tab-reports-panel" className="space-y-8">
+                    <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                      <div>
+                        <h3 className="text-lg font-black uppercase tracking-tight text-guava-dark decoration-guava-orange decoration-4 underline-offset-8 underline mb-1">
+                          Enterprise Ledger Reports
+                        </h3>
+                        <p className="text-xs text-gray-400 font-semibold">Generate structured CSV yields sheets, compliance statements and staff debt parameters</p>
                       </div>
+                      <span className="px-3 py-1 bg-white border border-gray-200 rounded-full text-[9px] font-black uppercase tracking-wider text-slate-550">
+                        Reporting tools
+                      </span>
+                    </div>
 
                       {isUploadComplete ? (
                         <motion.div
@@ -2569,35 +2179,16 @@ export default function LenderProfile({ user }: LenderProfileProps) {
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        {[
-                          {
-                            label: "Institutional KYC",
-                            val: "Level 4 (Full Audit)",
-                          },
-                          { label: "Node Credential", val: "ECDSA SHA-256" },
-                          {
-                            label: "Relay Status",
-                            val: "High Availability Active",
-                          },
-                        ].map((stat, i) => (
-                          <div
-                            key={i}
-                            className="p-6 bg-gray-50 rounded-3xl border border-gray-100"
-                          >
-                            <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                              {stat.label}
-                            </p>
-                            <p className="text-sm font-bold text-guava-dark italic">
-                              {stat.val}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Decor */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-guava-green/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                  </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Corporate Email</label>
+                  <input 
+                    type="email" 
+                    required
+                    className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl outline-none"
+                    value={newUserForm.email}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                  />
+                </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="p-8 bg-guava-orange text-white rounded-[40px] shadow-lg shadow-guava-orange/20">
@@ -2766,7 +2357,7 @@ function UploadCard({
         "relative p-6 rounded-[32px] border-2 transition-all flex flex-col items-center justify-center gap-4 text-center h-52 overflow-hidden",
         isDragOver ? "border-guava-orange bg-guava-orange/5 scale-[1.02]" : "",
         state.status === 'approved' || active
-          ? "bg-emerald-50/20 border-emerald-500/30 text-emerald-950"
+          ? "bg-emerald-50/60 border-emerald-500/30 text-emerald-950"
           : state.status === 'uploading' || state.status === 'analyzing'
           ? "bg-slate-50 border-slate-300"
           : "bg-gray-50 border-dashed border-gray-200 text-gray-400 hover:border-guava-orange/40 hover:bg-gray-50/50"
@@ -2798,21 +2389,15 @@ function UploadCard({
       )}
 
       {(state.status === 'uploading' || state.status === 'analyzing') && (
-        <div className="flex flex-col items-center gap-3 w-full px-4 relative z-20 pointer-events-none">
-          <div className="w-12 h-12 rounded-full border-2 border-guava-orange border-t-transparent animate-spin flex items-center justify-center" />
+        <div className="flex flex-col items-center gap-2 w-full px-2 relative z-20 pointer-events-none">
+          <div className="w-10 h-10 rounded-full border-2 border-guava-orange border-t-transparent animate-spin flex items-center justify-center" />
           <div className="space-y-1 w-full">
-            <p className="text-xs font-black uppercase text-guava-dark">
-              {state.status === 'uploading' ? `Uploading (${state.progress}%)` : 'System Pre-Approving...'}
+            <p className="text-[9px] font-black uppercase text-guava-dark">
+              {state.status === 'uploading' ? `Uploading (${state.progress}%)` : 'Pre-Approving...'}
             </p>
-            <p className="text-[10px] font-bold text-gray-400 truncate max-w-full">
+            <p className="text-[8px] font-bold text-gray-400 truncate max-w-full">
               {state.fileName || 'analyzing_payload.pdf'}
             </p>
-            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-guava-orange transition-all duration-150" 
-                style={{ width: `${state.progress}%` }}
-              />
-            </div>
           </div>
         </div>
       )}
@@ -2821,16 +2406,16 @@ function UploadCard({
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="flex flex-col items-center gap-3 relative z-20 pointer-events-none"
+          className="flex flex-col items-center gap-2 relative z-20 pointer-events-none"
         >
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <CheckCircle2 className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
-          <div className="space-y-1">
-            <p className="text-xs font-black uppercase tracking-widest text-emerald-800">{label}</p>
-            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-100 text-[8px] font-black uppercase tracking-widest text-emerald-700 rounded-full border border-emerald-200">
-              <ShieldCheck className="w-3 h-3" />
-              Approved by ACX
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-800">{label}</p>
+            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-[7px] font-black uppercase tracking-widest text-emerald-700 rounded-full border border-emerald-200">
+              <ShieldCheck className="w-2.5 h-2.5" />
+              Approved Node
             </div>
           </div>
         </motion.div>
