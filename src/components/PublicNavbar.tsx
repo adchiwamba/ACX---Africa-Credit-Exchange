@@ -497,7 +497,7 @@ export default function PublicNavbar({ onLogin }: PublicNavbarProps) {
             className="fixed inset-0 z-50 bg-white flex flex-col md:flex-row overflow-y-auto md:overflow-hidden h-screen w-screen"
           >
             {/* Left visual column - Majestic high-fidelity vertical finance architecture for ACX */}
-            <div className="relative w-full md:w-1/2 lg:w-[52%] h-[400px] md:h-full bg-slate-950 flex flex-col p-6 md:p-10 text-white md:overflow-hidden overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden shrink-0">
+            <div className="relative w-full md:w-1/2 lg:w-[52%] h-[400px] md:h-full bg-slate-950 flex flex-col p-6 md:p-10 text-white overflow-hidden shrink-0">
               <div className="absolute inset-0 z-0 select-none pointer-events-none">
                 <img
                   src="/src/assets/images/acx_sovereign_nodes_1780667190940.png"
@@ -692,8 +692,17 @@ export default function PublicNavbar({ onLogin }: PublicNavbarProps) {
               </button>
 
               <div className="max-w-md w-full mx-auto">
-                {authMode === "register" ? (
-                <>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={authMode}
+                    initial={{ opacity: 0, y: 8, scale: 0.99 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                    transition={{ duration: 0.22, ease: "easeOut" }}
+                    className="w-full"
+                  >
+                    {authMode === "register" ? (
+                      <>
                     <div className="mb-5">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex gap-1.5 flex-1 mr-3">
@@ -729,7 +738,16 @@ export default function PublicNavbar({ onLogin }: PublicNavbarProps) {
                       </p>
                     </div>
 
-                    {step === 1 && (
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={`step-${step}`}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="w-full"
+                      >
+                        {step === 1 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {[
                           {
@@ -1355,6 +1373,8 @@ export default function PublicNavbar({ onLogin }: PublicNavbarProps) {
                         </button>
                       </div>
                     )}
+                      </motion.div>
+                    </AnimatePresence>
                   </>
                 ) : (
                   <div className="space-y-6">
@@ -1529,17 +1549,22 @@ export default function PublicNavbar({ onLogin }: PublicNavbarProps) {
                             "Login to ACX"
                           )}
                         </button>
+                      </div>
+                      <p className="text-center text-xs text-slate-400 mt-4">
+                        Don&apos;t have an account?{" "}
                         <button
                           type="button"
                           onClick={() => setAuthMode("register")}
-                          className="w-full py-3 border border-gray-100 rounded-xl font-black text-xs uppercase tracking-widest text-gray-400 hover:text-guava-orange transition-colors cursor-pointer"
+                          className="font-black text-guava-orange hover:underline cursor-pointer"
                         >
-                          Signup to ACX
+                          Create one free
                         </button>
-                      </div>
+                      </p>
                     </form>
                   </div>
                 )}
+                </motion.div>
+              </AnimatePresence>
               </div>
               </div>
             </motion.div>
