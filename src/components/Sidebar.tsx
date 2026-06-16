@@ -8,7 +8,7 @@ import {
   Settings, 
   ShieldCheck,
   CreditCard,
-  X,
+  Menu,
   PlusCircle,
   User,
   Ban,
@@ -26,10 +26,11 @@ interface SidebarProps {
   isOpen: boolean;
   user: UserProfile;
   onClose: () => void;
+  onToggle: () => void;
   onDeposit?: () => void;
 }
 
-export default function Sidebar({ isOpen, user, onClose, onDeposit }: SidebarProps) {
+export default function Sidebar({ isOpen, user, onClose, onToggle, onDeposit }: SidebarProps) {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: Globe, label: 'African Market', path: '/marketplace' },
@@ -66,14 +67,20 @@ export default function Sidebar({ isOpen, user, onClose, onDeposit }: SidebarPro
         "fixed lg:static inset-y-0 left-0 bg-white dark:bg-[#0F172A] border-r border-gray-100 dark:border-white/5 transform transition-all duration-300 ease-in-out z-30 flex flex-col overflow-hidden",
         isOpen ? "w-64" : "w-0 lg:w-20"
       )}>
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-50 dark:border-white/5 shrink-0 bg-gray-50/50 dark:bg-[#1E293B]">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-white/40">Menu</span>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-gray-400 dark:text-white/60" />
+        <div className="h-16 flex items-center shrink-0 border-b border-gray-50 dark:border-white/5 px-4">
+          <button
+            onClick={onToggle}
+            className={cn(
+              "p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors",
+              !isOpen && "lg:mx-auto"
+            )}
+            aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
-        <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto overflow-x-hidden min-w-0">
           {filteredItems.map((item) => (
             <NavLink
               key={item.path}
@@ -91,7 +98,7 @@ export default function Sidebar({ isOpen, user, onClose, onDeposit }: SidebarPro
               )} />
               <span className={cn(
                 "transition-opacity duration-300 whitespace-nowrap",
-                !isOpen && "lg:opacity-0"
+                !isOpen && "lg:hidden"
               )}>{item.label}</span>
               
               {/* Tooltip for collapsed state */}

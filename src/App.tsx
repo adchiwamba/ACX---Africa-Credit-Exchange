@@ -197,7 +197,8 @@ function AuthenticatedApp({
         <Sidebar 
           isOpen={isSidebarOpen} 
           user={user} 
-          onClose={() => setIsSidebarOpen(false)} 
+          onClose={() => setIsSidebarOpen(false)}
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
           onDeposit={onDeposit}
         />
         
