@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { UserProfile, UserRole, Investment, LoanRequest } from '../types';
 import { firestoreService } from '../services/firestoreService';
 import LendingOrderModal from '../components/LendingOrderModal';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   PieChart as PieIcon, 
   Activity, 
@@ -9,7 +10,13 @@ import {
   ArrowUpRight,
   Clock,
   LayoutGrid,
-  Zap
+  Zap,
+  Wallet,
+  ShieldCheck,
+  TrendingUp,
+  Banknote,
+  Plus,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -55,42 +62,101 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
   const totalPrincipal = investments.reduce((sum, inv) => sum + inv.amount, 0);
   const totalValue = totalPrincipal * 1.05; // Simulate 5% growth for demo but based on actual principal
   const unrealizedGain = totalValue - totalPrincipal;
+  const activeItems = isLender ? investments : myLoans;
+  const chartBars = [42, 58, 46, 72, 64, 86, 76, 92, 82];
+  const riskBands = [
+    { label: 'Low Risk (A+)', value: totalValue > 0 ? 64 : 0, color: 'bg-emerald-400' },
+    { label: 'Medium Risk (B)', value: totalValue > 0 ? 28 : 0, color: 'bg-guava-orange' },
+    { label: 'High Risk (C)', value: totalValue > 0 ? 8 : 0, color: 'bg-red-400' },
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10 animate-in slide-in-from-right-4 duration-700">
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-black tracking-tighter">Investment Portfolio</h2>
-          <p className="text-gray-400 text-sm font-medium">Tracking your deployed capital and yield performance.</p>
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-full border border-green-100 italic font-black text-xs">
-          <Activity className="w-3 h-3" />
-          ACTIVE PERFORMANCE
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: 'easeOut' }}
+      className="max-w-7xl mx-auto space-y-8"
+    >
+      <div className="relative overflow-hidden rounded-[28px] bg-slate-950 text-white border border-slate-800 shadow-2xl shadow-slate-300/30">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-guava-orange via-guava-green to-blue-500" />
+        <div className="relative p-6 md:p-8 lg:p-10">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-3 mb-5">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/70">
+                  <ShieldCheck className="w-3.5 h-3.5 text-guava-green" />
+                  ACX Portfolio Command
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                  Live Sync
+                </div>
+              </div>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white">
+                Investment Portfolio
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-300">
+                Track deployed capital, available balance, loan exposure, and performance history across your ACX credit activity.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 min-w-full lg:min-w-[420px]">
+              {[
+                { label: 'Available', value: `$${user.balance.toLocaleString()}`, icon: Wallet },
+                { label: isLender ? 'Allocated' : 'Loans', value: isLender ? `$${totalPrincipal.toLocaleString()}` : myLoans.length.toString(), icon: Banknote },
+                { label: 'Portfolio Value', value: `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: TrendingUp },
+                { label: 'Open Items', value: activeItems.length.toString(), icon: Activity },
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05, duration: 0.35 }}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                >
+                  <stat.icon className="w-4 h-4 text-guava-orange mb-4" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{stat.label}</p>
+                  <p className="mt-1 text-lg font-black tracking-tight text-white">{stat.value}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="bg-guava-dark p-8 rounded-[32px] shadow-xl shadow-guava-orange/10 flex flex-col justify-between">
+      <LendingOrderModal
+        isOpen={isOrderModalOpen}
+        onClose={() => setIsOrderModalOpen(false)}
+        user={user}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        <motion.div
+          whileHover={{ y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="bg-slate-950 p-6 md:p-8 rounded-[28px] shadow-xl shadow-slate-300/30 border border-slate-800 flex flex-col justify-between overflow-hidden relative lg:col-span-5"
+        >
            <div>
+              <div className="flex items-center justify-between mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-guava-orange text-white flex items-center justify-center shadow-lg shadow-guava-orange/20">
+                  <Wallet className="w-6 h-6" />
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                  Synced
+                </div>
+              </div>
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Total Assets</p>
-              <p className="text-5xl font-black font-mono tracking-tighter text-white">${(user.balance + totalPrincipal).toLocaleString()}</p>
+              <p className="text-4xl md:text-5xl font-black font-mono tracking-tighter text-white">${(user.balance + totalPrincipal).toLocaleString()}</p>
+              <p className="mt-3 text-xs font-semibold text-slate-500">Available balance plus deployed principal.</p>
            </div>
            
            <div className="mt-8 space-y-4">
-              <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                 <div className="flex justify-between items-center mb-1">
-                    <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Portal Node</span>
-                    <span className="text-[8px] font-black text-guava-green uppercase tracking-widest flex items-center gap-1">
-                       <div className="w-1 h-1 bg-guava-green rounded-full animate-pulse" />
-                       Synced
-                    </span>
-                 </div>
-              </div>
-              
               <button 
                 onClick={onDeposit}
-                className="w-full py-4 bg-guava-orange text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-[1.02] transition-all shadow-lg shadow-guava-orange/20 mb-3"
+                className="w-full py-4 bg-guava-orange text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-[1.01] transition-all shadow-lg shadow-guava-orange/20 flex items-center justify-center gap-2"
               >
+                <Plus className="w-4 h-4" />
                 Deposit Funds
               </button>
 
@@ -104,101 +170,93 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
                 </button>
               )}
            </div>
-        </div>
+        </motion.div>
 
-        <LendingOrderModal 
-          isOpen={isOrderModalOpen} 
-          onClose={() => setIsOrderModalOpen(false)} 
-          user={user} 
-        />
-
-        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm col-span-1 md:col-span-2">
-           <div className="flex justify-between items-start mb-10">
+        <motion.div
+          whileHover={{ y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-200 shadow-xl shadow-slate-200/50 lg:col-span-5"
+        >
+           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6 mb-10">
               <div>
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">Portfolio Value</p>
-                 <p className="text-5xl font-black font-mono tracking-tighter">${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">Portfolio Value</p>
+                 <p className="text-4xl md:text-5xl font-black font-mono tracking-tighter text-slate-950">${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
-              <div className="text-right">
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">Unrealized Gain</p>
-                 <p className={cn("text-2xl font-black font-mono", unrealizedGain > 0 ? "text-green-500" : "text-gray-400")}>
+              <div className="sm:text-right rounded-2xl bg-slate-50 border border-slate-100 px-5 py-4">
+                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">Unrealized Gain</p>
+                 <p className={cn("text-2xl font-black font-mono", unrealizedGain > 0 ? "text-emerald-500" : "text-slate-400")}>
                     {unrealizedGain >= 0 ? '+' : ''}${unrealizedGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                  </p>
               </div>
            </div>
 
-           <div className="h-48 flex items-end gap-3 px-4">
-              {investments.length > 0 ? (
-                // If there are real investments, spread them across the chart area
-                Array.from({ length: 9 }).map((_, i) => {
-                  const h = 5 + Math.random() * 95;
-                  return (
-                    <div key={i} className="flex-1 bg-gray-100 rounded-t-xl group relative">
-                       <div className="absolute inset-0 bg-black scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-500 rounded-t-xl" style={{ height: `${h}%` }} />
-                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold">
-                         {Math.round(h)}%
+           <div className="h-56 flex items-end gap-3 px-2 sm:px-4 rounded-3xl bg-slate-50 border border-slate-100 p-5">
+              {activeItems.length > 0 ? (
+                chartBars.map((h, i) => (
+                    <div key={i} className="flex-1 h-full flex items-end group relative">
+                       <motion.div
+                         initial={{ height: 0 }}
+                         animate={{ height: `${h}%` }}
+                         transition={{ duration: 0.55, delay: i * 0.04, ease: 'easeOut' }}
+                         className="w-full bg-slate-950 rounded-t-xl group-hover:bg-guava-orange transition-colors"
+                       />
+                       <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-black text-slate-500">
+                         {h}%
                        </div>
                     </div>
-                  );
-                })
+                ))
               ) : (
-                // Empty state for chart
-                <div className="flex-1 h-full flex items-center justify-center border-2 border-dashed border-gray-100 rounded-3xl">
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Awaiting Capital Flow</p>
+                <div className="flex-1 h-full flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-3xl">
+                  <Sparkles className="w-7 h-7 text-slate-300 mb-3" />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Awaiting Capital Flow</p>
                 </div>
               )}
            </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-[#1A1A1A] p-8 rounded-[32px] text-white space-y-8 flex flex-col justify-between">
+        <motion.div
+          whileHover={{ y: -3 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white p-6 md:p-8 rounded-[28px] text-slate-950 space-y-8 flex flex-col justify-between border border-slate-200 shadow-xl shadow-slate-200/50 lg:col-span-3"
+        >
            <div>
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
-                <PieIcon className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center mb-6 text-white">
+                <PieIcon className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-black tracking-tighter uppercase mb-4">Risk Distribution</h3>
+              <h3 className="text-xl font-black tracking-tight mb-2">Risk Distribution</h3>
+              <p className="text-xs font-semibold text-slate-500 mb-6">Current demo mix across rated credit exposure.</p>
               <div className="space-y-4">
-                 <div>
-                    <div className="flex justify-between text-[10px] font-black uppercase opacity-40 mb-2">
-                       <span>Low Risk (A+)</span>
-                       <span>{totalValue > 0 ? '64%' : '0%'}</span>
+                 {riskBands.map((risk, index) => (
+                   <div key={risk.label}>
+                    <div className="flex justify-between text-[10px] font-black uppercase text-slate-400 mb-2">
+                       <span>{risk.label}</span>
+                       <span>{risk.value}%</span>
                     </div>
-                    <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                       <div className="h-full bg-green-400" style={{ width: totalValue > 0 ? '64%' : '0%' }} />
-                    </div>
-                 </div>
-                 <div>
-                    <div className="flex justify-between text-[10px] font-black uppercase opacity-40 mb-2">
-                       <span>Medium Risk (B)</span>
-                       <span>{totalValue > 0 ? '28%' : '0%'}</span>
-                    </div>
-                    <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                       <div className="h-full bg-orange-400" style={{ width: totalValue > 0 ? '28%' : '0%' }} />
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                       <motion.div
+                         initial={{ width: 0 }}
+                         animate={{ width: `${risk.value}%` }}
+                         transition={{ duration: 0.55, delay: index * 0.08 }}
+                         className={cn("h-full rounded-full", risk.color)}
+                       />
                     </div>
                  </div>
-                 <div>
-                    <div className="flex justify-between text-[10px] font-black uppercase opacity-40 mb-2">
-                       <span>High Risk (C)</span>
-                       <span>{totalValue > 0 ? '8%' : '0%'}</span>
-                    </div>
-                    <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                       <div className="h-full bg-red-400" style={{ width: totalValue > 0 ? '8%' : '0%' }} />
-                    </div>
-                 </div>
+                 ))}
               </div>
            </div>
            
-           <button className="w-full py-4 border border-white/20 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+           <button className="w-full py-4 border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-950 hover:text-white transition-all">
              Optimize Mix
            </button>
-        </div>
-      </div>
+        </motion.div>
 
-      <div className="bg-white dark:bg-[#1E293B] rounded-[32px] border border-gray-100 dark:border-white/5 shadow-sm overflow-hidden">
-         <div className="p-8 border-b border-gray-50 dark:border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="flex bg-gray-100 dark:bg-black p-1 rounded-2xl">
+      <div className="bg-white dark:bg-[#1E293B] rounded-[28px] border border-slate-200 dark:border-white/5 shadow-xl shadow-slate-200/50 overflow-hidden lg:col-span-7">
+         <div className="p-5 md:p-8 border-b border-slate-100 dark:border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="flex bg-slate-100 dark:bg-black p-1 rounded-2xl w-full sm:w-auto">
                <button 
                  onClick={() => setActiveTab('allocations')}
                  className={cn(
-                   "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                   "flex-1 sm:flex-none justify-center px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                    activeTab === 'allocations' 
                     ? "bg-white dark:bg-[#1E293B] text-black dark:text-white shadow-sm" 
                     : "text-gray-400 hover:text-gray-600"
@@ -210,7 +268,7 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
                <button 
                  onClick={() => setActiveTab('history')}
                  className={cn(
-                   "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                   "flex-1 sm:flex-none justify-center px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                    activeTab === 'history' 
                     ? "bg-white dark:bg-[#1E293B] text-black dark:text-white shadow-sm" 
                     : "text-gray-400 hover:text-gray-600"
@@ -229,25 +287,33 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
             )}
          </div>
 
+         <AnimatePresence mode="wait">
          {activeTab === 'allocations' ? (
+           <motion.div
+             key="allocations"
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: -8 }}
+             transition={{ duration: 0.25 }}
+           >
            <div className="overflow-x-auto">
               <table className="w-full text-left">
                  <thead>
-                    <tr className="bg-gray-50/50 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                       <th className="px-8 py-4">{isLender ? 'Asset ID / Borrower' : 'Loan ID / Purpose'}</th>
-                       <th className="px-8 py-4">Principal</th>
-                       <th className="px-8 py-4">{isLender ? 'Current Value' : 'Paid amount'}</th>
-                       <th className="px-8 py-4">Rate</th>
-                       <th className="px-8 py-4 text-right">Action</th>
+                    <tr className="bg-slate-50/80 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                       <th className="px-6 md:px-8 py-4">{isLender ? 'Asset ID / Borrower' : 'Loan ID / Purpose'}</th>
+                       <th className="px-6 md:px-8 py-4">Principal</th>
+                       <th className="px-6 md:px-8 py-4">{isLender ? 'Current Value' : 'Paid Amount'}</th>
+                       <th className="px-6 md:px-8 py-4">Rate</th>
+                       <th className="px-6 md:px-8 py-4 text-right">Action</th>
                     </tr>
                  </thead>
-                 <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                 <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                     {isLender ? (
                       investments.map((inv, i) => (
-                        <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                           <td className="px-8 py-6">
+                        <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                           <td className="px-6 md:px-8 py-6">
                               <div className="flex items-center gap-3">
-                                 <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center font-black text-xs text-guava-dark dark:text-white">
+                                 <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/10 flex items-center justify-center font-black text-xs text-guava-dark dark:text-white">
                                     {inv.id.split('_')[1]}
                                  </div>
                                  <div>
@@ -256,21 +322,21 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
                                  </div>
                               </div>
                            </td>
-                           <td className="px-8 py-6">
+                           <td className="px-6 md:px-8 py-6">
                               <p className="text-sm font-mono font-bold dark:text-white">${inv.amount.toLocaleString()}</p>
                            </td>
-                           <td className="px-8 py-6">
+                           <td className="px-6 md:px-8 py-6">
                               <div className="flex items-center gap-1.5">
                                  <p className="text-sm font-mono font-bold text-green-600">${(inv.amount * 1.05).toLocaleString()}</p>
                                  <ArrowUpRight className="w-3 h-3 text-green-500" />
                               </div>
                            </td>
-                           <td className="px-8 py-6">
-                              <span className="text-[10px] font-black px-2 py-1 bg-black dark:bg-white dark:text-black text-white rounded-md tracking-tighter">
+                           <td className="px-6 md:px-8 py-6">
+                              <span className="text-[10px] font-black px-2 py-1 bg-slate-950 dark:bg-white dark:text-black text-white rounded-md tracking-tighter">
                                  {inv.loan?.interestRate || '8.5'}%
                               </span>
                            </td>
-                           <td className="px-8 py-6 text-right">
+                           <td className="px-6 md:px-8 py-6 text-right">
                               <button className="p-2 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all border border-transparent hover:border-gray-200">
                                  <ChevronRight className="w-4 h-4 dark:text-white" />
                               </button>
@@ -279,8 +345,8 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
                       ))
                     ) : (
                       myLoans.map((loan, i) => (
-                        <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                           <td className="px-8 py-6">
+                        <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                           <td className="px-6 md:px-8 py-6">
                               <div className="flex items-center gap-3">
                                  <div className="w-10 h-10 rounded-xl bg-guava-orange/10 flex items-center justify-center font-black text-xs text-guava-orange">
                                     {loan.id.slice(-4)}
@@ -291,18 +357,18 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
                                  </div>
                               </div>
                            </td>
-                           <td className="px-8 py-6">
+                           <td className="px-6 md:px-8 py-6">
                               <p className="text-sm font-mono font-bold dark:text-white">${loan.amount.toLocaleString()}</p>
                            </td>
-                           <td className="px-8 py-6">
+                           <td className="px-6 md:px-8 py-6">
                               <p className="text-sm font-mono font-bold text-gray-500 dark:text-gray-400">$0.00</p>
                            </td>
-                           <td className="px-8 py-6">
+                           <td className="px-6 md:px-8 py-6">
                               <span className="text-[10px] font-black px-2 py-1 bg-guava-dark text-white rounded-md tracking-tighter">
                                  {loan.interestRate}%
                               </span>
                            </td>
-                           <td className="px-8 py-6 text-right">
+                           <td className="px-6 md:px-8 py-6 text-right">
                               <button className="p-2 hover:bg-white dark:hover:bg-white/10 rounded-lg transition-all border border-transparent hover:border-gray-200">
                                  <ChevronRight className="w-4 h-4 dark:text-white" />
                               </button>
@@ -320,14 +386,22 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
                  </tbody>
               </table>
            </div>
+           </motion.div>
          ) : (
-           <div className="p-12 space-y-6">
-              {(isLender ? investments : myLoans).length > 0 ? (
+           <motion.div
+             key="history"
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: -8 }}
+             transition={{ duration: 0.25 }}
+             className="p-6 md:p-12 space-y-6"
+           >
+              {activeItems.length > 0 ? (
                 [
                   { type: 'DEPOSIT', desc: 'Capital injection successful', amount: `+ $${user.balance.toLocaleString()}`, date: 'Just now' },
                   { type: 'SYNC', desc: 'Node synchronization key refreshed', amount: null, date: 'recently' }
                 ].map((event, i) => (
-                  <div key={i} className="flex items-center justify-between p-6 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 group hover:border-guava-orange transition-all">
+                  <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5 group hover:border-guava-orange transition-all">
                      <div className="flex items-center gap-6">
                         <div className="w-12 h-12 bg-white dark:bg-black rounded-2xl flex items-center justify-center border border-gray-100 dark:border-white/10 text-gray-400 group-hover:text-guava-orange transition-colors">
                            <Clock className="w-6 h-6" />
@@ -355,9 +429,11 @@ export default function Portfolio({ user, onDeposit }: PortfolioProps) {
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No recent audit events in node.</p>
                 </div>
               )}
-           </div>
+           </motion.div>
          )}
+         </AnimatePresence>
       </div>
-    </div>
+      </div>
+    </motion.div>
   );
 }

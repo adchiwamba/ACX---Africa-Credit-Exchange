@@ -69,6 +69,17 @@ type LenderTab =
   | "node"
   | "config";
 
+type DelinquentLoanStage = "INITIAL" | "WRITTEN" | "FINAL" | "BLACKLISTED";
+
+interface DelinquentLoan {
+  id: string;
+  borrower: string;
+  amount: number;
+  overdueDays: number;
+  creditScore: number;
+  stage: DelinquentLoanStage;
+}
+
 const PNL_DATA = [
   { month: "Jan", revenue: 45000, expenses: 12000, profit: 33000 },
   { month: "Feb", revenue: 52000, expenses: 14000, profit: 38000 },
@@ -262,242 +273,219 @@ export default function LenderProfile({ user }: LenderProfileProps) {
     } else {
       monthlyPayment = P * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
     }
-    
-    const installment = Math.round(monthlyPayment * 100) / 100;
-    const totalPayable = Math.round(installment * n * 100) / 100;
-    const totalInterest = Math.round((totalPayable - P) * 100) / 100;
-    
-    setCalculatedInstallment(installment);
-    setCalculatedTotalInterest(totalInterest);
-    setCalculatedTotalPayable(totalPayable);
-    
-    let remainingBalance = P;
-    const schedule = [];
-    for (let i = 1; i <= n; i++) {
-      const interestComponent = Math.round(remainingBalance * r * 100) / 100;
-      const principalComponent = Math.round((installment - interestComponent) * 100) / 100;
-      remainingBalance = Math.max(0, Math.round((remainingBalance - principalComponent) * 100) / 100);
-      schedule.push({
-        month: i,
-        payment: installment,
-        principal: principalComponent,
-        interest: interestComponent,
-        balance: remainingBalance
-      });
-    }
-    setAmortizationSchedule(schedule);
-  }, [calcPrincipal, calcInterest, calcTermMonths]);
-
-  // Sample users to seed if empty
-  const getSampleUsers = (): StaffUser[] => {
-    return [
-      { uid: "staff_1", displayName: "Alick Banda", email: "alick.banda@guavacorp.com", role: UserRole.BORROWER, kycStatus: "VERIFIED", creditScore: 742, balance: 1250, borrowLimit: 5000, isBlacklisted: false, department: "Engineering" },
-      { uid: "staff_2", displayName: "Soka Kamwendo", email: "soka.kamwendo@guavacorp.com", role: UserRole.BORROWER, kycStatus: "VERIFIED", creditScore: 695, balance: 420, borrowLimit: 3500, isBlacklisted: false, department: "Operations" },
-      { uid: "staff_3", displayName: "Chikondi Phiri", email: "chikondi.phiri@guavacorp.com", role: UserRole.BORROWER, kycStatus: "PENDING", creditScore: 580, balance: 15, borrowLimit: 1000, isBlacklisted: false, department: "Creative Marketing" },
-      { uid: "staff_4", displayName: "Thoko Moyo", email: "thoko.moyo@guavacorp.com", role: UserRole.BORROWER, kycStatus: "VERIFIED", creditScore: 610, balance: 80, borrowLimit: 2000, isBlacklisted: true, department: "Logistics", blacklistReason: "Delinquency on micro-loans" },
-      { uid: "staff_5", displayName: "Patricia Mlanda", email: "patricia.mlanda@guavacorp.com", role: UserRole.BORROWER, kycStatus: "VERIFIED", creditScore: 785, balance: 3400, borrowLimit: 7500, isBlacklisted: false, department: "Finance & Admin" },
-    ];
   };
 
-  // Sample loans fallback helper
-  const getSampleLoans = (lenderId: string): LoanRequest[] => {
-    return [
-      { id: "loan_a", borrowerId: "staff_1", lenderId, amount: 2500, currency: "USD", purpose: "Solar Pump Installation", durationMonths: 12, interestRate: 12.0, status: LoanStatus.FUNDED, createdAt: "2026-05-10T12:00:00Z", creditScoreSnapshot: 740, alternativeDataMetrics: {} },
-      { id: "loan_b", borrowerId: "staff_2", lenderId, amount: 800, currency: "USD", purpose: "School Fees Micro-funding", durationMonths: 6, interestRate: 11.5, status: LoanStatus.FUNDED, createdAt: "2026-05-24T14:30:00Z", creditScoreSnapshot: 690, alternativeDataMetrics: {} },
-      { id: "loan_c", borrowerId: "staff_4", lenderId, amount: 1500, currency: "USD", purpose: "Motorcycle Amortization", durationMonths: 10, interestRate: 14.0, status: LoanStatus.DELINQUENT, createdAt: "2026-03-01T08:00:00Z", creditScoreSnapshot: 610, alternativeDataMetrics: {} },
-    ];
+  const toggleItemSelection = (id: string) => {
+    setSelectedItemIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
   };
 
-  const getSampleRepayments = (): Repayment[] => {
-    return [
-      { id: "rep_a1", loanId: "loan_a", amount: 233.33, dueDate: "2026-06-10", paidDate: "2026-06-09", status: "PAID" },
-      { id: "rep_a2", loanId: "loan_a", amount: 233.33, dueDate: "2026-07-10", status: "PENDING" },
-      { id: "rep_b1", loanId: "loan_b", amount: 141.00, dueDate: "2026-06-24", status: "PENDING" },
-      { id: "rep_c1", loanId: "loan_c", amount: 167.50, dueDate: "2026-04-01", status: "OVERDUE" },
-      { id: "rep_c2", loanId: "loan_c", amount: 167.50, dueDate: "2026-05-01", status: "OVERDUE" },
-    ];
+  const handleBulkPrint = () => {
+    if (selectedItemIds.length === 0) return;
+    setIsBulkPrintOpen(true);
   };
 
-  // Surgical payment of an individual repayment milestone
-  const handleSurgicalPayRepayment = async (repaymentId: string) => {
-    try {
-      const repayItem = repaymentsList.find(r => r.id === repaymentId);
-      if (!repayItem) return;
-      
-      const updatedRepStatus: Partial<Repayment> = {
-        status: 'PAID' as const,
-        paidDate: new Date().toISOString().split('T')[0]
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+    if (isScannerOpen) {
+      // Small delay to ensure the DOM element #reader exists
+      const timer = setTimeout(() => {
+        scanner = new Html5QrcodeScanner(
+          "reader",
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          false,
+        );
+
+        scanner.render(
+          (decodedText: string) => {
+            const item = inventory.find(
+              (i) => i.barcode === decodedText || i.id === decodedText,
+            );
+            if (item && !scannedItem) {
+              setScannedItem(item);
+              setInventory((prev) =>
+                prev.map((si) =>
+                  si.id === item.id
+                    ? { ...si, stockQuantity: si.stockQuantity + 1 }
+                    : si,
+                ),
+              );
+
+              // Clear scanned item after 2 seconds to allow next scan
+              setTimeout(() => {
+                setScannedItem(null);
+              }, 2000);
+            }
+          },
+          () => {
+            // Silence errors as they are frequent during scanning
+          },
+        );
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (scanner) {
+          scanner
+            .clear()
+            .catch((e: Error) => console.error("Failed to clear scanner", e));
+        }
       };
-      
-      // Update local state
-      setRepaymentsList(prev => prev.map(r => r.id === repaymentId ? { ...r, ...updatedRepStatus } : r));
-      
-      // Attempt Firestore persist
-      try {
-        await firestoreService.updateRepayment(repaymentId, updatedRepStatus);
-      } catch (firestoreErr) {
-        console.warn("Could not save repayment milestone change to firestore:", firestoreErr);
-      }
-      
-      // Retrieve associated loan
-      const associatedLoan = loansList.find(l => l.id === repayItem.loanId);
-      if (associatedLoan) {
-        const emp = customUsers.find(u => u.uid === associatedLoan.borrowerId) || { displayName: "Borrower" };
-        addLogEvent("success", `Repayment settled: Received installment of $${repayItem.amount.toFixed(2)} from ${emp.displayName}`);
-        
-        // Check if all instalments for this loan are now PAID
-        const loanRepayments = repaymentsList.map(r => r.id === repaymentId ? { ...r, ...updatedRepStatus } : r).filter(r => r.loanId === associatedLoan.id);
-        const allPaid = loanRepayments.every(r => r.status === "PAID");
-        if (allPaid) {
-          // Update loan status to COMPLETED
-          setLoansList(prev => prev.map(l => l.id === associatedLoan.id ? { ...l, status: LoanStatus.COMPLETED } : l));
-          try {
-            await firestoreService.updateLoan(associatedLoan.id, { status: LoanStatus.COMPLETED });
-          } catch (loanErr) {
-            console.warn("Could not save loan status update to firestore:", loanErr);
-          }
-          addLogEvent("success", `Loan Fully Repaid! Corridor ${associatedLoan.id.slice(0, 8)} for ${emp.displayName} is now COMPLETED.`);
+    }
+  }, [isScannerOpen, inventory, scannedItem]);
+
+  const handleBulkUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split("\n");
+      const newItems: StockItem[] = [];
+
+      // Skip header assuming format: Name, Price, Quantity
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const [name, price, quantity, category, threshold] = line
+          .split(",")
+          .map((s) => s.trim());
+        if (name && price && quantity) {
+          newItems.push({
+            id: `bulk_${Date.now()}_${i}`,
+            name,
+            price: parseFloat(price),
+            stockQuantity: parseInt(quantity),
+            lowStockThreshold: threshold ? parseInt(threshold) : 5,
+            category: category || "General",
+            currency: "USD",
+            description: `Bulk uploaded product: ${name}`,
+          });
         }
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
-  // Record a general custom repayment towards outstanding principal
-  const handleLogCustomRepayment = async (loanId: string, amount: number) => {
-    try {
-      const loan = loansList.find(l => l.id === loanId);
-      if (!loan) return;
-      const emp = customUsers.find(u => u.uid === loan.borrowerId) || { displayName: "Borrower" };
-      
-      // Find pending or overdue repayments for this loan
-      const remainingInstallments = repaymentsList.filter(r => r.loanId === loanId && r.status !== "PAID").sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-      
-      if (remainingInstallments.length === 0) {
-        alert("This loan corridor has no pending payments or outstanding balance.");
-        return;
-      }
-      
-      let amountLeft = amount;
-      let newRepayments = [...repaymentsList];
-      
-      for (const inst of remainingInstallments) {
-        if (amountLeft <= 0) break;
-        if (amountLeft >= inst.amount) {
-          // Pay the full installment
-          newRepayments = newRepayments.map(r => r.id === inst.id ? { ...r, status: "PAID" as const, paidDate: new Date().toISOString().split('T')[0] } : r);
-          amountLeft -= inst.amount;
-          try {
-            await firestoreService.updateRepayment(inst.id, { status: "PAID", paidDate: new Date().toISOString().split('T')[0] });
-          } catch {}
-        } else {
-          // Pay partial installment (we subtract from current amount, but keep it pending/or custom status if desired)
-          newRepayments = newRepayments.map(r => r.id === inst.id ? { ...r, amount: Math.max(0, r.amount - amountLeft) } : r);
-          amountLeft = 0;
-          try {
-            await firestoreService.updateRepayment(inst.id, { amount: Math.max(0, inst.amount - amountLeft) });
-          } catch {}
-        }
-      }
-      
-      setRepaymentsList(newRepayments);
-      addLogEvent("success", `Logged Payment: Registered repayment of $${amount.toFixed(2)} for ${emp.displayName}.`);
-      
-      // Check if all paid now
-      const loanSchedule = newRepayments.filter(r => r.loanId === loanId);
-      if (loanSchedule.every(r => r.status === "PAID")) {
-        setLoansList(prev => prev.map(l => l.id === loanId ? { ...l, status: LoanStatus.COMPLETED } : l));
-        try {
-          await firestoreService.updateLoan(loanId, { status: LoanStatus.COMPLETED });
-        } catch {}
-        addLogEvent("success", `Loan fully settled for ${emp.displayName}! Status marked to COMPLETED.`);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  // Simulate a disbursed loan from the on-board calculator
-  const handleSimulatedDisbursal = async (borrowerId: string, amount: number, interestRate: number, durationMonths: number) => {
-    try {
-      const emp = customUsers.find(u => u.uid === borrowerId);
-      if (!emp) return;
-      
-      const newLoanId = `loan_sim_${Date.now()}`;
-      const newLoan: LoanRequest = {
-        id: newLoanId,
-        borrowerId,
-        lenderId: user.uid,
-        amount,
-        currency: "USD",
-        purpose: `Amortized Simulation (${durationMonths}m @ ${interestRate}%)`,
-        durationMonths,
-        interestRate,
-        status: LoanStatus.FUNDED,
-        createdAt: new Date().toISOString(),
-        creditScoreSnapshot: emp.creditScore,
-        alternativeDataMetrics: {}
-      };
-      
-      // Update state
-      setLoansList(prev => [newLoan, ...prev]);
-      
-      // Attempt Firestore create
-      try {
-        await firestoreService.createLoan(newLoan);
-      } catch (fErr) {
-        console.warn("Could not write simulated loan to firebase, fallback to state active:", fErr);
-      }
-      
-      // Generate its amortization schedule repayments
-      const r = (interestRate / 12) / 100;
-      let monthlyPayment = 0;
-      if (r === 0) {
-        monthlyPayment = amount / durationMonths;
+      if (newItems.length > 0) {
+        setInventory((prev) => [...prev, ...newItems]);
+        alert(`Successfully imported ${newItems.length} items to inventory.`);
       } else {
-        monthlyPayment = amount * (r * Math.pow(1 + r, durationMonths)) / (Math.pow(1 + r, durationMonths) - 1);
+        alert(
+          "No valid items found in CSV. Expected format: Name, Price, Quantity, [Category]",
+        );
       }
-      const installment = Math.round(monthlyPayment * 100) / 100;
-      
-      const newRepaymentsArray: Repayment[] = [];
-      const now = new Date();
-      for (let i = 1; i <= durationMonths; i++) {
-        const dueDate = new Date(now.getFullYear(), now.getMonth() + i, 15).toISOString().split('T')[0];
-        const repItem: Repayment = {
-          id: `rep_sim_${newLoanId}_${i}`,
-          loanId: newLoanId,
-          amount: installment,
-          dueDate,
-          status: 'PENDING'
-        };
-        newRepaymentsArray.push(repItem);
-        try {
-          await firestoreService.createRepayment(repItem);
-        } catch {}
-      }
-      
-      setRepaymentsList(prev => [...newRepaymentsArray, ...prev]);
-      addLogEvent("success", `Corridor Approved: Disbursed $${amount.toLocaleString()} simulated loan to ${emp.displayName}. Amortization schedule queued.`);
-      
-      // Automatically switch default selected repay loan to this new simulation loan for easy immediate action!
-      setSelectedRepayLoanId(newLoanId);
-      setLoanManagerTab("payments");
-    } catch (e) {
-      console.error(e);
-    }
+      setIsUploading(false);
+    };
+
+    reader.onerror = () => {
+      alert("Error reading file.");
+      setIsUploading(false);
+    };
+
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = "";
   };
 
-  // Dispatch warnings and alerts to the borrower
-  const handleDispatchWarningNotification = (repayment: Repayment, borrowerName: string) => {
-    const noticeType = repayment.status === "OVERDUE" ? "warning" : "info";
-    const msg = repayment.status === "OVERDUE"
-      ? `SOVEREIGN ARREARS ALERT pushed to ${borrowerName} for non-payment of instalment $${repayment.amount.toFixed(2)} (Scheduled: ${repayment.dueDate})`
-      : `Friendly due-soon reminder dispatched to ${borrowerName} for installment $${repayment.amount.toFixed(2)} (Due on ${repayment.dueDate})`;
-      
-    addLogEvent(noticeType, msg);
-    alert(`[Sovereign Core Notification Gateway]\nStatus: TRANSMITTED SUCCESSFULLY\n\nTarget Partner: ${borrowerName}\nScheduled Instalment: $${repayment.amount.toFixed(2)}\nDue/Delinquency timeline: ${repayment.dueDate}\n\nNotice content has been dispatched to the borrower's private corridor widget.`);
-  };
+  const [delinquentLoans, setDelinquentLoans] = useState([]);
+
+  // Report Filters
+  const [timeRange, setTimeRange] = useState<TimeRange>("6M");
+  const [assetClass, setAssetClass] = useState<AssetClass>("ALL");
+  const [regionFilter, setRegionFilter] = useState<Region>("ALL");
+  const [minCreditScore, setMinCreditScore] = useState(650);
+
+  // Dynamic Intelligence Calculations
+  const filteredIntelligence = useMemo(() => {
+    let multiplier = 1;
+    if (timeRange === "30D") multiplier = 0.2;
+    if (timeRange === "1Y") multiplier = 2.0;
+    if (timeRange === "ALL") multiplier = 3.5;
+
+    // Asset and Region weighting simulation
+    const assetWeights: Record<AssetClass, number> = {
+      ALL: 1,
+      Energy: 0.25,
+      Agriculture: 0.35,
+      Retail: 0.2,
+      Retailer: 0.2,
+      Consumer: 0.2,
+    };
+    const regionWeights: Record<Region, number> = {
+      ALL: 1,
+      "East Africa": 0.3,
+      "Central Europe": 0.2,
+      "Southeast Asia": 0.25,
+      "Southern Africa": 0.25,
+    };
+
+    const weight = assetWeights[assetClass] * regionWeights[regionFilter];
+    const effectiveMultiplier = multiplier * weight;
+
+    // Credit score impact simulation: higher min score = lower volume but potentially higher safety/lower raw yield
+    const scoreImpact = 1 - (minCreditScore - 300) / 1200;
+    const finalMod = effectiveMultiplier * scoreImpact;
+
+    return {
+      profit: (276.5 * finalMod).toFixed(1),
+      revenue: (370.0 * finalMod).toFixed(1),
+      yield: (12.8 * (1 + (minCreditScore - 600) / 1000)).toFixed(1),
+      trend:
+        assetClass === "Energy"
+          ? "+32.1%"
+          : regionFilter === "East Africa"
+            ? "+28.5%"
+            : "+24.2%",
+      chartData: PNL_DATA.map((d) => ({
+        ...d,
+        revenue: Math.round(d.revenue * finalMod),
+        expenses: Math.round(d.expenses * finalMod),
+        profit: Math.round(d.profit * finalMod),
+      })),
+    };
+  }, [timeRange, assetClass, regionFilter, minCreditScore]);
+
+  const [lenderData, setLenderData] = useState({
+    entityName: user.borrowerDetails?.profile?.businessName || user.displayName,
+    taxId:
+      user.organizationDetails?.taxId ||
+      user.borrowerDetails?.profile?.businessReg ||
+      "",
+    jurisdiction: user.country || "",
+    hqAddress: user.physicalAddress || "",
+    latitude: user.latitude,
+    longitude: user.longitude,
+    entityType:
+      user.organizationDetails?.industry ||
+      (user.role === UserRole.RETAILER ? "Retailer" : "Institutional Investor"),
+    liquidityCapacity: 0,
+    minYieldTarget: 0,
+    maxRiskExposure: "MEDIUM",
+    sectors: [],
+    regions: [],
+    reportingCurrency: "USD",
+  });
+
+  const [uploads, setUploads] = useState({
+    governance: false,
+    proofOfFunds: false,
+    operatingLicense: false,
+    complianceAudit: false,
+    taxResidency: false,
+  });
+
+  const [uploadProgress, setUploadProgress] = useState<Record<string, {
+    progress: number;
+    status: 'idle' | 'uploading' | 'analyzing' | 'approved';
+    fileName?: string;
+  }>>({});
 
   const handleFileChosen = (key: keyof typeof uploads, file: File) => {
     setUploadProgress((prev) => ({
@@ -569,27 +557,12 @@ export default function LenderProfile({ user }: LenderProfileProps) {
     }, 2500);
   };
 
-  // Log events helper
-  const addLogEvent = (type: string, text: string) => {
-    const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setLiveLogEvents(prev => [
-      { id: Date.now().toString(), type, text, time: timeString },
-      ...prev.slice(0, 7) // Keep recent 8 logs
-    ]);
-  };
+  const sectionConfig = [
+    { id: "identity", label: "Institutional Identity", icon: Landmark },
+    { id: "liquidity", label: "Capital Allocation", icon: Banknote },
+    { id: "documents", label: "KYB", icon: FileSearch },
+  ];
 
-  const clearNodeCache = () => {
-    if (confirm("Are you sure you want to clear the node cache? This will reset all local registration data.")) {
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith("acx_")) {
-          localStorage.removeItem(key);
-        }
-      });
-      window.location.reload();
-    }
-  };
-
-  // Calculate completeness percentage
   const completeness = useMemo(() => {
     const files = Object.values(uploads).filter(Boolean).length;
     const fields = Object.values(lenderData).filter(
@@ -598,193 +571,42 @@ export default function LenderProfile({ user }: LenderProfileProps) {
     return Math.min(100, Math.round(((fields + files) / (10 + 5)) * 100));
   }, [lenderData, uploads]);
 
-  // Live active system loan summaries
-  const totalVolumeDisbursed = useMemo(() => {
-    return loansList
-      .filter(l => [LoanStatus.FUNDED, LoanStatus.DELINQUENT, LoanStatus.COMPLETED].includes(l.status))
-      .reduce((sum, l) => sum + l.amount, 0);
-  }, [loansList]);
+  const displaySections = useMemo(() => {
+    return sectionConfig;
+  }, []);
 
-  const activeEmployeeCount = useMemo(() => {
-    return customUsers.filter(u => u.kycStatus === "VERIFIED" && !u.isBlacklisted).length;
-  }, [customUsers]);
+  // Handle section visibility changes
+  useEffect(() => {
+    if (activeSection !== "identity" && activeSection !== "liquidity" && activeSection !== "documents") {
+      setActiveSection("identity");
+    }
+  }, [activeSection]);
 
-  const defaultRates = useMemo(() => {
-    const delinqAmount = loansList.filter(l => l.status === LoanStatus.DELINQUENT).reduce((sum, l) => sum + l.amount, 0);
-    if (totalVolumeDisbursed === 0) return "0.0%";
-    return `${((delinqAmount / totalVolumeDisbursed) * 100).toFixed(1)}%`;
-  }, [loansList, totalVolumeDisbursed]);
-
-  // User list search filters
-  const filteredEmployeesList = useMemo(() => {
-    return customUsers.filter(u => 
-      u.displayName.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-      (u.department && u.department.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
-      u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+  const inventoryStats = useMemo(() => {
+    const totalValue = inventory.reduce(
+      (acc, item) => acc + item.price * item.stockQuantity,
+      0,
     );
-  }, [customUsers, userSearchQuery]);
-
-  // Blacklisted members
-  const blacklistedEmployeesList = useMemo(() => {
-    return customUsers.filter(u => u.isBlacklisted);
-  }, [customUsers]);
-
-  // Handle Add custom User
-  const handleAddUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    const mockUid = `custom_uid_${Date.now()}`;
-    const newUser = {
-      uid: mockUid,
-      displayName: newUserForm.displayName,
-      email: newUserForm.email,
-      role: newUserForm.role,
-      kycStatus: newUserForm.kycStatus,
-      creditScore: newUserForm.creditScore,
-      balance: newUserForm.balance,
-      borrowLimit: newUserForm.borrowLimit,
-      isBlacklisted: false,
-      department: "Staff Node"
-    };
-
-    const updated = [newUser, ...customUsers];
-    setCustomUsers(updated);
-    localStorage.setItem("acx_custom_users", JSON.stringify(updated));
-    setIsAddUserModalOpen(false);
-    
-    // Clear form
-    setNewUserForm({
-      displayName: "",
-      email: "",
-      role: UserRole.BORROWER,
-      kycStatus: "VERIFIED",
-      creditScore: 710,
-      balance: 500,
-      borrowLimit: 3000
+    const categories: Record<string, number> = {};
+    inventory.forEach((item) => {
+      categories[item.category] = (categories[item.category] || 0) + 1;
     });
+    const distributionData = Object.entries(categories).map(
+      ([name, count]) => ({
+        name,
+        count,
+      }),
+    );
+    return { totalValue, distributionData };
+  }, [inventory]);
 
-    addLogEvent("success", `User Added: Created secure staff credit node for ${newUser.displayName}`);
-    alert(`Staff User Account ${newUser.displayName} created successfully!`);
-  };
-
-  // Open Edit User Modal
-  const openEditUser = (userObj: StaffUser) => {
-    setSelectedUser(userObj);
-    setIsEditUserModalOpen(true);
-  };
-
-  // Handle Update User limits
-  const handleUpdateUserLimit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
-
-    const updated = customUsers.map(u => {
-      if (u.uid === selectedUser.uid) {
-        return {
-          ...u,
-          borrowLimit: selectedUser.borrowLimit,
-          displayName: selectedUser.displayName,
-          creditScore: selectedUser.creditScore,
-          kycStatus: selectedUser.kycStatus
-        };
-      }
-      return u;
-    });
-
-    setCustomUsers(updated);
-    localStorage.setItem("acx_custom_users", JSON.stringify(updated));
-    setIsEditUserModalOpen(false);
-    addLogEvent("info", `User Updated: Limit for ${selectedUser.displayName} adjusted to $${selectedUser.borrowLimit.toLocaleString()}`);
-    setSelectedUser(null);
-  };
-
-  // Handle blacklisting standard user
-  const handleAddBlacklist = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!blacklistForm.emailOrUid) return;
-
-    const targetVal = blacklistForm.emailOrUid.trim();
-    let found = false;
-
-    const updated = customUsers.map(u => {
-      if (u.email === targetVal || u.uid === targetVal || u.displayName.toLowerCase().includes(targetVal.toLowerCase())) {
-        found = true;
-        return {
-          ...u,
-          isBlacklisted: true,
-          blacklistReason: blacklistForm.reason,
-          blacklistCategory: blacklistForm.category
-        };
-      }
-      return u;
-    });
-
-    if (!found) {
-      alert("No user matched that email, user ID, or name inside your local database. Check capitalization.");
-      return;
-    }
-
-    setCustomUsers(updated);
-    localStorage.setItem("acx_custom_users", JSON.stringify(updated));
-    addLogEvent("warning", `Blacklisted: Restricted borrow node access for ${targetVal} [Category: ${blacklistForm.category}]`);
-    
-    // Reset form
-    setBlacklistForm({
-      emailOrUid: "",
-      reason: "Late payments warning delinquency",
-      category: "Default Risk"
-    });
-    alert("User successfully added to blacklist restriction!");
-  };
-
-  // Remove member from blacklist
-  const handleRemoveFromBlacklist = (uid: string, name: string) => {
-    if (confirm(`Are you sure you want to restore credit access to ${name}?`)) {
-      const updated = customUsers.map(u => {
-        if (u.uid === uid) {
-          return {
-            ...u,
-            isBlacklisted: false,
-            blacklistReason: undefined,
-            blacklistCategory: undefined
-          };
-        }
-        return u;
-      });
-
-      setCustomUsers(updated);
-      localStorage.setItem("acx_custom_users", JSON.stringify(updated));
-      addLogEvent("success", `Pardoned: Restored and re-verified credit corredor authority for ${name}`);
-      alert("Staff Member removed from Blacklist restrictions successfully.");
-    }
-  };
-
-  // Generate compliance report
-  const handleGenerateReport = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsGeneratingReport(true);
-    setReportOutputs([]);
-
-    const steps = [
-      `1. Querying ledger databases and matching logs for ${reportDateRange}...`,
-      "2. Verifying audit trails and KYC identity tokens of all employee nodes...",
-      "3. Parsing loan yields, penalties fees, and active principal distribution matrices...",
-      `4. Calculating total exposure matching minimum targeted yield of ${lenderData.minYieldTarget}%...`,
-      `5. Packaging secure data into high-integrity ${reportFormat} format...`,
-      `6. COMPLETE: Dispatched report of type [${reportType}] to hr-ops@guavacorp.com!`
-    ];
-
-    let currentStep = 0;
-    const interval = setInterval(() => {
-      if (currentStep < steps.length) {
-        setReportOutputs(prev => [...prev, steps[currentStep]]);
-        currentStep++;
-      } else {
-        clearInterval(interval);
-        setIsGeneratingReport(false);
-        addLogEvent("success", `Report Download ready: ${reportType}_${reportDateRange}.${reportFormat.toLowerCase()}`);
-      }
-    }, 700);
-  };
+  const filteredInventory = useMemo(() => {
+    return inventory.filter(
+      (item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [inventory, searchQuery]);
 
   return (
     <>
@@ -1077,297 +899,256 @@ export default function LenderProfile({ user }: LenderProfileProps) {
                       </span>
                     </div>
 
-                    {/* INTERACTIVE GRAPHS AREA */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      
-                      {/* PNL TREND CHANGER & CHART */}
-                      <div className="md:col-span-2 space-y-4">
-                        <div className="flex justify-between items-center">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            Profit & yield Intelligence Trend
-                          </p>
-                          <span className="text-[10px] font-bold text-guava-orange">Cumulative Cash-Flow (USD)</span>
-                        </div>
-                        <div className="h-64 bg-slate-50 rounded-3xl p-4 border border-gray-100 flex items-center justify-center">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={PNL_DATA}>
-                              <defs>
-                                <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#f36d38" stopOpacity={0.2}/>
-                                  <stop offset="95%" stopColor="#f36d38" stopOpacity={0}/>
-                                </linearGradient>
-                              </defs>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                              <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 'bold' }} stroke="#94A3B8" />
-                              <YAxis tick={{ fontSize: 10, fontWeight: 'bold' }} stroke="#94A3B8" />
-                              <RechartsTooltip />
-                              <Area type="monotone" dataKey="profit" stroke="#f36d38" strokeWidth={3} fillOpacity={1} fill="url(#colorProfit)" />
-                              <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={1} fillOpacity={0} />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
+              <div className="space-y-4">
+                <button
+                  onClick={() => window.print()}
+                  className="w-full py-4 bg-guava-orange text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-guava-dark transition-all shadow-lg shadow-guava-orange/20"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print Asset Label
+                </button>
+                <button
+                  onClick={() => setQrItem(null)}
+                  className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-guava-dark transition-all"
+                >
+                  Close Portal
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
-                      {/* PIE CHART TARGET DEPARTURE PIE */}
-                      <div className="space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          Active Allocation Matrix
-                        </p>
-                        <div className="h-64 bg-slate-50 rounded-3xl p-4 border border-gray-100 flex flex-col justify-between items-center">
-                          <div className="relative w-full h-40 flex items-center justify-center">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={REVENUE_STREAMS}
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={45}
-                                  outerRadius={65}
-                                  paddingAngle={3}
-                                  dataKey="value"
-                                >
-                                  {REVENUE_STREAMS.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                  ))}
-                                </Pie>
-                                <RechartsTooltip />
-                              </PieChart>
-                            </ResponsiveContainer>
-                            <div className="absolute text-center">
-                              <p className="text-2xl font-black font-mono text-slate-800">12.4%</p>
-                              <p className="text-[8px] font-bold uppercase text-slate-400">Avg net APR</p>
-                            </div>
-                          </div>
-                          
-                          <div className="w-full text-left space-y-1 mt-1">
-                            {REVENUE_STREAMS.map((stream, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-[9px] font-semibold text-slate-600">
-                                <span className="flex items-center gap-1">
-                                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stream.color }} />
-                                  {stream.name}
-                                </span>
-                                <span className="font-mono">{stream.value}%</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
+      <div className="max-w-[1400px] mx-auto p-4 md:p-8 animate-in fade-in duration-1000">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="px-2 py-1 bg-guava-orange text-white text-[8px] font-black uppercase tracking-[0.2em] rounded">
+                Institutional Gateway v4
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400">
+                <Lock className="w-3 h-3 text-guava-orange" />
+                Secured Node Connection
+              </div>
+            </div>
+            <h2 className="text-4xl font-black tracking-tighter text-guava-dark">
+              Business Portal Studio
+            </h2>
+            <p className="text-gray-400 text-sm font-medium mt-1">
+              Configure your deployment parameters for the global ACX credit
+              ecosystem.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={clearNodeCache}
+                className="px-6 py-2 bg-white border border-gray-100 text-gray-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-guava-orange transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3 block" />
+                Clear Node Cache
+              </button>
+            </div>
+          </div>
 
-                    </div>
-
-                    {/* NEW LOAN APPLICATIONS LIVE INTAKE SECTION */}
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recent Employee Credit Requests</p>
-                        <span className="text-[9px] font-black uppercase text-guava-orange bg-orange-50 border border-orange-100 px-2 py-0.5 rounded cursor-pointer hover:bg-orange-100" onClick={() => setActiveTab("portfolio")}>Manage All</span>
-                      </div>
-                      <div className="border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
-                        <table className="w-full text-left border-collapse">
-                          <thead className="bg-gray-50 border-b border-gray-100 text-[9px] font-black uppercase tracking-wider text-slate-500">
-                            <tr>
-                              <th className="p-4">Borrower Name</th>
-                              <th className="p-4">Authorized Amount</th>
-                              <th className="p-4">Term</th>
-                              <th className="p-4">Alternative score</th>
-                              <th className="p-4">corridor status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="text-xs font-semibold text-slate-700 divide-y divide-gray-50">
-                            {loansList.slice(0, 3).map((item, idx) => {
-                              const emp = customUsers.find(u => u.uid === item.borrowerId) || { displayName: `Staff ID ${item.borrowerId.slice(0, 6)}`, creditScore: item.creditScoreSnapshot };
-                              return (
-                                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                  <td className="p-4 font-bold text-guava-dark">{emp.displayName}</td>
-                                  <td className="p-4 font-mono font-black">${item.amount.toLocaleString()} {item.currency}</td>
-                                  <td className="p-4">{item.durationMonths} Months</td>
-                                  <td className="p-4">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                                      emp.creditScore > 700 ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
-                                    }`}>
-                                      {emp.creditScore} AAA
-                                    </span>
-                                  </td>
-                                  <td className="p-4">
-                                    <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
-                                      item.status === LoanStatus.FUNDED ? "bg-green-500/10 text-guava-green" :
-                                      item.status === LoanStatus.DELINQUENT ? "text-red-500 bg-red-50" : "text-amber-500 bg-amber-50"
-                                    }`}>
-                                      {item.status}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
+          <div className="flex items-center gap-4 bg-white p-2 pr-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt="Org Logo"
+                className="w-12 h-12 rounded-2xl object-cover shadow-lg"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-2xl bg-guava-orange flex items-center justify-center text-white italic font-black shadow-lg shadow-guava-orange/20">
+                {isVerified ? "GOLD" : "LVL 0"}
+              </div>
+            )}
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">
+                Node Status
+              </p>
+              <div className="flex items-center gap-2">
+                <p
+                  className={cn(
+                    "text-sm font-bold uppercase italic tracking-tight",
+                    isVerified ? "text-guava-green" : "text-guava-orange",
+                  )}
+                >
+                  {isVerified
+                    ? "Authenticated Institutional Node"
+                    : "Authentication Pending"}
+                </p>
+                {user.is2FAEnabled && (
+                  <div className="px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded flex items-center gap-1 border border-blue-100">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span className="text-[8px] font-black uppercase">2FA</span>
                   </div>
                 )}
-                
-                {/* ================================================================= TAB: BUSINESS NODE ================================================================= */}
-                {activeTab === "node" && (
-                  <div id="tab-node-panel" className="space-y-10">
-                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 pb-4 border-b border-gray-100">
-                      <div>
-                        <h3 className="text-lg font-black uppercase tracking-tight text-guava-dark decoration-guava-orange decoration-4 underline-offset-8 underline mb-1">
-                          Enterprise Business Node
-                        </h3>
-                        <p className="text-xs text-gray-400 font-semibold font-bold">
-                          Configure credit settings, manage decentralized loan portfolios, repayments, and live communications sync
-                        </p>
-                      </div>
-                      
-                      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start md:self-auto">
-                        <button
-                          onClick={() => setNodeSubTab("loan_mgr")}
-                          className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border-none ${
-                            nodeSubTab === "loan_mgr"
-                              ? "bg-white text-guava-dark shadow-sm"
-                              : "text-slate-500 hover:text-slate-800 bg-transparent"
-                          }`}
-                        >
-                          Loan Management Core
-                        </button>
-                        <button
-                          onClick={() => setNodeSubTab("entity_info")}
-                          className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border-none ${
-                            nodeSubTab === "entity_info"
-                              ? "bg-white text-guava-dark shadow-sm"
-                              : "text-slate-500 hover:text-slate-800 bg-transparent"
-                          }`}
-                        >
-                          Compliance &amp; Profile Settings
-                        </button>
-                      </div>
-                    </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                    {nodeSubTab === "loan_mgr" ? (
-                      <div className="space-y-8 animate-fade-in">
-                        {/* Summary Metrics Banner */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="bg-slate-50 hover:bg-slate-100/70 border border-slate-100 rounded-3xl p-6 transition-all shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Active Collateral Balance</p>
-                            <p className="text-3xl font-black font-mono text-guava-dark">
-                              ${(loansList.filter(l => l.status === LoanStatus.FUNDED).reduce((sum, l) => sum + l.amount, 0)).toLocaleString()}
-                            </p>
-                            <p className="text-[10px] text-gray-400 font-semibold mt-1">Generating active interest yield on distributed credit</p>
-                          </div>
-                          
-                          <div className="bg-amber-50/50 hover:bg-amber-50 border border-amber-100/50 rounded-3xl p-6 transition-all shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 mb-1">Delinquence Overdue Risk</p>
-                            <p className="text-3xl font-black font-mono text-amber-600">
-                              ${(repaymentsList.filter(r => r.status === "OVERDUE").reduce((sum, r) => sum + r.amount, 0)).toLocaleString()}
-                            </p>
-                            <p className="text-[10px] text-amber-500 font-semibold mt-1">Outstanding installments requires active dispatch notice</p>
-                          </div>
+        {user.organizationDetails && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4">
+              <div className="w-10 h-10 bg-orange-50 text-guava-orange rounded-xl flex items-center justify-center">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
+                  Industry
+                </p>
+                <p className="text-sm font-black text-guava-dark">
+                  {user.organizationDetails.industry}
+                </p>
+              </div>
+            </div>
+            <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4">
+              <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
+                  Company Size
+                </p>
+                <p className="text-sm font-black text-guava-dark">
+                  {user.organizationDetails.companySize} Elements
+                </p>
+              </div>
+            </div>
+            <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4">
+              <div className="w-10 h-10 bg-green-50 text-guava-green rounded-xl flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
+                  Contact Person
+                </p>
+                <p className="text-sm font-black text-guava-dark">
+                  {user.organizationDetails.contactPerson}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-                          <div className="bg-green-50/50 hover:bg-green-50 border border-green-100/50 rounded-3xl p-6 transition-all shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-guava-green mb-1">Amortized Repaid Capital</p>
-                            <p className="text-3xl font-black font-mono text-guava-green">
-                              ${(repaymentsList.filter(r => r.status === "PAID").reduce((sum, r) => sum + r.amount, 0)).toLocaleString()}
-                            </p>
-                            <p className="text-[10px] text-guava-green/70 font-semibold mt-1">Successfully collected principal and yield payouts</p>
+        {/* Horizontal Navigation Tabs on Top */}
+        <div className="mb-8 border-b border-gray-100 pb-4">
+          <div className="flex flex-wrap gap-2 md:gap-3 overflow-x-auto scroller-hide pb-2">
+            {displaySections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => {
+                  setActiveSection(section.id as LenderSection);
+                  if (step === 2) setStep(1);
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-3 rounded-full text-xs font-black uppercase tracking-wider transition-all duration-300 border-2 cursor-pointer select-none",
+                  activeSection === section.id
+                    ? "bg-guava-orange text-white border-guava-orange shadow-md shadow-guava-orange/20 scale-[1.01]"
+                    : "bg-white text-gray-400 border-gray-100/80 hover:border-guava-orange/20 hover:text-guava-dark",
+                )}
+              >
+                <section.icon
+                  className={cn(
+                    "w-4 h-4",
+                    activeSection === section.id
+                      ? "text-white"
+                      : "text-gray-400",
+                  )}
+                />
+                <span>{section.label}</span>
+                {activeSection === section.id && (
+                  <motion.div
+                    layoutId="nav-glow-lender-horizontal"
+                    className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_6px_rgba(255,255,255,0.8)]"
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Content Area */}
+          <div className="lg:col-span-9">
+            <AnimatePresence mode="wait">
+              {step === 1 ? (
+                <motion.div
+                  key={activeSection}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="bg-white rounded-[40px] p-8 md:p-12 border border-gray-100 shadow-xl shadow-gray-200/20"
+                >
+                  {activeSection === "identity" && (
+                    <div className="space-y-10">
+                      <SectionHeader
+                        title="Capital Entity Identity"
+                        subtitle="Primary organizational data for institutional record sync."
+                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <InputField
+                          label="Official Entity Name"
+                          value={lenderData.entityName}
+                          onChange={(v) =>
+                            setLenderData({ ...lenderData, entityName: v })
+                          }
+                        />
+                        <InputField
+                          label="Tax ID / Registration No."
+                          value={lenderData.taxId}
+                          onChange={(v) =>
+                            setLenderData({ ...lenderData, taxId: v })
+                          }
+                          placeholder="e.g. VAT/TIN-8219"
+                        />
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            Primary Jurisdiction
+                          </label>
+                          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                            <Globe className="w-5 h-5 text-gray-300" />
+                            <input
+                              className="w-full text-lg font-bold outline-none"
+                              value={lenderData.jurisdiction}
+                              onChange={(e) =>
+                                setLenderData({
+                                  ...lenderData,
+                                  jurisdiction: e.target.value,
+                                })
+                              }
+                            />
                           </div>
                         </div>
-
-                        {/* Top: inner state tab switch */}
-                        <div className="flex border-b border-gray-100 gap-6">
-                          <button
-                            onClick={() => setLoanManagerTab("payments")}
-                            className={`pb-3 text-xs font-black uppercase tracking-wider relative cursor-pointer border-none bg-transparent ${
-                              loanManagerTab === "payments" ? "text-guava-orange animate-none" : "text-gray-400 hover:text-gray-600"
-                            }`}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            Institutional Category
+                          </label>
+                          <select
+                            className="w-full text-lg font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 bg-transparent"
+                            value={lenderData.entityType}
+                            onChange={(e) =>
+                              setLenderData({
+                                ...lenderData,
+                                entityType: e.target.value,
+                              })
+                            }
                           >
-                            Repayments Registry
-                            {loanManagerTab === "payments" && (
-                              <motion.div layoutId="lmTabLine" className="absolute bottom-0 left-0 right-0 h-0.5 bg-guava-orange" />
-                            )}
-                          </button>
-                          
-                          <button
-                            onClick={() => setLoanManagerTab("calculator")}
-                            className={`pb-3 text-xs font-black uppercase tracking-wider relative cursor-pointer border-none bg-transparent ${
-                              loanManagerTab === "calculator" ? "text-guava-orange animate-none" : "text-gray-400 hover:text-gray-600"
-                            }`}
-                          >
-                            Amortization Calculator
-                            {loanManagerTab === "calculator" && (
-                              <motion.div layoutId="lmTabLine" className="absolute bottom-0 left-0 right-0 h-0.5 bg-guava-orange" />
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => setLoanManagerTab("notifications")}
-                            className={`pb-3 text-xs font-black uppercase tracking-wider relative cursor-pointer flex items-center gap-1.5 border-none bg-transparent ${
-                              loanManagerTab === "notifications" ? "text-guava-orange animate-none" : "text-gray-400 hover:text-gray-600"
-                            }`}
-                          >
-                            Installment Notices &amp; Alerts
-                            {repaymentsList.filter(r => r.status === "OVERDUE").length > 0 && (
-                              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                            )}
-                            {loanManagerTab === "notifications" && (
-                              <motion.div layoutId="lmTabLine" className="absolute bottom-0 left-0 right-0 h-0.5 bg-guava-orange" />
-                            )}
-                          </button>
+                            <option value="Commercial Bank">
+                              Commercial Bank
+                            </option>
+                            <option value="Retailer">Retailer</option>
+                            <option value="Hedge Fund / Family Office">
+                              Hedge Fund / Family Office
+                            </option>
+                            <option value="Pension Fund">Pension Fund</option>
+                            <option value="Individual (HNW / Accredited)">
+                              Individual (HNW / Accredited)
+                            </option>
+                          </select>
                         </div>
-
-                        {/* Loan Manager Core Details Tab panels */}
-                        {loanManagerTab === "payments" && (
-                          <div className="space-y-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                              {/* Left column: payment controls */}
-                              <div className="lg:col-span-1 space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Repayment Recorder Console</h4>
-                                
-                                <div className="space-y-2">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-bold">Select Active Loan Corridor</label>
-                                  <select
-                                    value={selectedRepayLoanId}
-                                    onChange={(e) => setSelectedRepayLoanId(e.target.value)}
-                                    className="w-full text-xs font-bold bg-white border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-guava-orange appearance-none"
-                                  >
-                                    <option value="">-- Choose Borrower Corridor --</option>
-                                    {loansList.map((loan) => {
-                                      const emp = customUsers.find(u => u.uid === loan.borrowerId) || { displayName: `Staff ID ${loan.borrowerId.slice(0, 5)}` };
-                                      return (
-                                        <option key={loan.id} value={loan.id}>
-                                          {emp.displayName} (${loan.amount.toLocaleString()} - {loan.purpose.slice(0, 15)}...)
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                </div>
-
-                                {selectedRepayLoanId && (() => {
-                                  const loan = loansList.find(l => l.id === selectedRepayLoanId);
-                                  if (!loan) return null;
-                                  const emp = customUsers.find(u => u.uid === loan.borrowerId) || { displayName: "Borrower" };
-                                  const loanRepayments = repaymentsList.filter(r => r.loanId === selectedRepayLoanId);
-                                  const paidAmount = loanRepayments.filter(r => r.status === "PAID").reduce((sum, r) => sum + r.amount, 0);
-                                  const totalOwed = loanRepayments.reduce((sum, r) => sum + r.amount, 0) || (loan.amount * (1 + (loan.interestRate/100)));
-                                  const remainingAmount = Math.max(0, totalOwed - paidAmount);
-                                  
-                                  return (
-                                    <div className="space-y-4 pt-2 border-t border-slate-200">
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-gray-400 font-bold">Borrower:</span>
-                                        <span className="font-bold text-guava-dark">{emp.displayName}</span>
-                                      </div>
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-gray-400 font-bold">Total Disbursed Owed:</span>
-                                        <span className="font-bold font-mono">${totalOwed.toFixed(2)}</span>
-                                      </div>
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-gray-400 font-bold text-guava-green">Paid Repayments:</span>
-                                        <span className="font-bold font-mono text-guava-green">${paidAmount.toFixed(2)}</span>
-                                      </div>
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-gray-400 font-bold text-amber-600">Outstanding Balance:</span>
-                                        <span className="font-bold font-mono text-amber-600">${remainingAmount.toFixed(2)}</span>
-                                      </div>
+                      </div>
 
                                       <div className="pt-4 border-t border-slate-200 space-y-3">
                                         <div className="space-y-1">
@@ -2313,148 +2094,90 @@ export default function LenderProfile({ user }: LenderProfileProps) {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                      {/* Left selector */}
-                      <form onSubmit={handleGenerateReport} className="lg:col-span-2 bg-gray-50 border border-gray-100 rounded-3xl p-6 space-y-4 self-start">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Printer className="w-5 h-5 text-guava-orange" />
-                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Report execution criteria</h4>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Report Dimension type</label>
-                          <select 
-                            className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl bg-white outline-none"
-                            value={reportType}
-                            onChange={(e) => setReportType(e.target.value)}
-                          >
-                            <option value="PNL">Profit & Loss ledger audits</option>
-                            <option value="staff exposure">Staff Debt-To-Income Exposure Summary</option>
-                            <option value="repayment delays">Delinquencies & Late Penalties logs</option>
-                            <option value="kyb compliance">KYB authentication registry overview</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reporting timeframe</label>
-                          <select 
-                            className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl bg-white outline-none"
-                            value={reportDateRange}
-                            onChange={(e) => setReportDateRange(e.target.value)}
-                          >
-                            <option value="Q1-2026">First Quarter Q1-2026</option>
-                            <option value="Q2-2026">Second Quarter Q2-2026</option>
-                            <option value="Last 30 Days">Last 30 Days trend</option>
-                            <option value="Full Year 2026">Full Calendar Year 2026</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">File Output extension format</label>
-                          <div className="grid grid-cols-3 gap-2 mt-1">
-                            {["PDF", "CSV", "JSON"].map((fmt) => (
-                              <button
-                                key={fmt}
-                                type="button"
-                                onClick={() => setReportFormat(fmt)}
-                                className={`py-2 rounded-xl text-[10px] font-black transition-all border cursor-pointer ${
-                                  reportFormat === fmt
-                                    ? "bg-slate-900 border-slate-900 text-white"
-                                    : "bg-white border-gray-200 text-slate-400 hover:border-gray-300"
-                                }`}
-                              >
-                                {fmt}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <button 
-                          type="submit"
-                          disabled={isGeneratingReport}
-                          className="w-full py-2.5 bg-guava-orange hover:bg-guava-orange/90 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] transition-all border-none flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-guava-orange/10"
+                      {isUploadComplete ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-8 bg-emerald-50 rounded-[32px] border-2 border-emerald-500/20 text-emerald-950 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden md:text-left text-center shadow-xl shadow-emerald-500/5 mt-8"
                         >
-                          {isGeneratingReport ? (
-                            <>Generating report... <RefreshCw className="w-3.5 h-3.5 animate-spin" /></>
-                          ) : (
-                            <>Compile & Export Statement</>
-                          )}
-                        </button>
-                      </form>
-
-                      {/* Right feedback panel */}
-                      <div className="lg:col-span-3 space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Report compiler output logs</p>
-                        
-                        <div className="bg-slate-50 border border-gray-100 rounded-3xl p-6 h-[290px] overflow-y-auto scroller-hide font-mono text-[10px] space-y-3.5 select-text">
-                          {reportOutputs.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 space-y-2">
-                              <Printer className="w-8 h-8 text-gray-300" />
-                              <p className="font-sans font-semibold">Select criteria and trigger statement compile output to trace build logs in real-time.</p>
+                          <div className="flex flex-col gap-1 items-center md:items-start text-left">
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white text-[8px] font-black uppercase tracking-[0.2em] rounded-full shadow-lg shadow-emerald-500/20">
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              Compliance Active
                             </div>
-                          ) : (
-                            reportOutputs.map((line, idx) => (
-                              <div key={idx} className={`${
-                                line.startsWith("6. COMPLETE") ? "text-guava-green font-black" : "text-slate-600 font-semibold"
-                              }`}>
-                                {line}
-                              </div>
-                            ))
-                          )}
+                            <h4 className="text-xl font-black text-emerald-900 mt-2 tracking-tight">
+                              KYB Verification Approved by System
+                            </h4>
+                            <p className="text-xs text-emerald-700/80 font-medium max-w-xl">
+                              The automated regulatory compliance engine has audited all uploaded credentials and validated your institutional node authenticity.
+                            </p>
+                          </div>
+                          <button
+                            onClick={handleVerify}
+                            disabled={isVerifying}
+                            className="px-8 py-4 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 w-full md:w-auto justify-center"
+                          >
+                            {isVerifying ? (
+                              <>Connecting Node... <RefreshCw className="w-4 h-4 animate-spin" /></>
+                            ) : (
+                              <>Authenticate Node <ArrowRight className="w-4 h-4" /></>
+                            )}
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <div className="mt-10 pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                          <p className="text-xs text-gray-400 font-medium">
+                            Upload all 5 credentials to activate full institutional gateway authentication.
+                          </p>
+                          <button
+                            onClick={saveProfile}
+                            disabled={isSaving}
+                            className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer shadow-lg w-full sm:w-auto justify-center"
+                          >
+                            {isSaving ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4" />
+                            )}
+                            Save Progress
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="lender-success"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-8"
+                >
+                  <div className="bg-white border-4 border-guava-dark rounded-[48px] p-12 shadow-2xl relative overflow-hidden text-center md:text-left">
+                    <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                      <div>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-guava-green/10 text-guava-green rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border border-guava-green/20">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Verified Institutional Node
+                        </div>
+                        <h4 className="text-6xl font-black font-mono tracking-tighter text-guava-dark mb-4">
+                          $
+                          {(
+                            lenderData.liquidityCapacity / 1000000
+                          ).toLocaleString()}
+                          M
+                        </h4>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 max-w-sm">
+                          DEPLOYMENT QUOTA AUTHORIZED FOR GLOBAL PORTAL POOLS.
+                          JURISDICTION: {lenderData.jurisdiction.toUpperCase()}
+                        </p>
+                        <div className="flex gap-4">
+                          <button className="flex-1 py-5 bg-guava-dark text-white rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-guava-orange transition-all flex items-center justify-center gap-3">
+                            Enter Market Board
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-                    </div>
-
-                  </div>
-                )}
-
-
-
-
-
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* ========================== MODALS SECTION ========================== */}
-      
-      {/* ADD STAFF USER MODAL */}
-      <AnimatePresence>
-        {isAddUserModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-2xl max-w-lg w-full relative space-y-6"
-            >
-              <button 
-                onClick={() => setIsAddUserModalOpen(false)}
-                className="absolute top-6 right-6 text-gray-400 hover:text-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="space-y-1.5 pb-2 border-b border-gray-100">
-                <h4 className="text-base font-black uppercase tracking-wide text-guava-dark">Invite Staff credit node</h4>
-                <p className="text-xs text-gray-400 font-semibold">Configure basic coordinates to register employee metrics in enterprise pool.</p>
-              </div>
-
-              <form onSubmit={handleAddUser} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Name</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl outline-none"
-                    value={newUserForm.displayName}
-                    onChange={(e) => setNewUserForm({ ...newUserForm, displayName: e.target.value })}
-                  />
-                </div>
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Corporate Email</label>
@@ -2467,131 +2190,75 @@ export default function LenderProfile({ user }: LenderProfileProps) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Initial credit Score</label>
-                    <input 
-                      type="number" 
-                      required
-                      min="300"
-                      max="850"
-                      className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl outline-none"
-                      value={newUserForm.creditScore}
-                      onChange={(e) => setNewUserForm({ ...newUserForm, creditScore: Number(e.target.value) })}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="p-8 bg-guava-orange text-white rounded-[40px] shadow-lg shadow-guava-orange/20">
+                      <h5 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">
+                        Avg Market Yield
+                      </h5>
+                      <p className="text-4xl font-black font-mono tracking-tighter">
+                        12.4%
+                      </p>
+                      <p className="text-[10px] font-bold mt-2 opacity-80 italic uppercase">
+                        Exceeding target by 3.9%
+                      </p>
+                    </div>
+                    <div className="md:col-span-2 p-8 bg-white border border-gray-100 rounded-[40px] flex items-center justify-between group cursor-pointer hover:border-guava-dark transition-all">
+                      <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 bg-guava-dark rounded-2xl flex items-center justify-center text-white italic font-black text-2xl group-hover:rotate-6 transition-transform">
+                          ACX
+                        </div>
+                        <div>
+                          <h6 className="text-lg font-black text-guava-dark">
+                            Liquidity Certificate
+                          </h6>
+                          <p className="text-xs text-gray-400 font-medium">
+                            Verify your capital availability to external
+                            portals.
+                          </p>
+                        </div>
+                      </div>
+                      <button className="p-4 bg-gray-50 rounded-2xl group-hover:bg-guava-orange group-hover:text-white transition-all">
+                        <Download className="w-6 h-6" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">credit Authorized Limit ($)</label>
-                    <input 
-                      type="number" 
-                      required
-                      className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl outline-none"
-                      value={newUserForm.borrowLimit}
-                      onChange={(e) => setNewUserForm({ ...newUserForm, borrowLimit: Number(e.target.value) })}
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  type="submit"
-                  className="w-full py-3 bg-guava-orange hover:bg-guava-orange/90 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none"
-                >
-                  Generate Invitation access
-                </button>
-              </form>
-            </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
-      </AnimatePresence>
 
-      {/* EDIT USER LIMITS MODAL */}
-      <AnimatePresence>
-        {isEditUserModalOpen && selectedUser && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-2xl max-w-lg w-full relative space-y-6"
-            >
-              <button 
-                onClick={() => {
-                  setIsEditUserModalOpen(false);
-                  setSelectedUser(null);
-                }}
-                className="absolute top-6 right-6 text-gray-400 hover:text-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="space-y-1.5 pb-2 border-b border-gray-100">
-                <h4 className="text-base font-black uppercase tracking-wide text-guava-dark text-slate-800">Adjust credit corridor boundaries</h4>
-                <p className="text-xs text-gray-400 font-semibold">{selectedUser.displayName} &mdash; {selectedUser.email}</p>
+          {/* KYB Status Widget Panel on Right */}
+          <div className="lg:col-span-3 space-y-6">
+            <div className="p-8 bg-white border border-gray-100 rounded-[40px] relative overflow-hidden group shadow-sm">
+              <div className="relative z-10">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    KYB Readiness
+                  </span>
+                  <span className="text-sm font-black text-guava-dark">
+                    {completeness}%
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden mb-8">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completeness}%` }}
+                    className="h-full bg-guava-green"
+                  />
+                </div>
+                <button
+                  disabled={isVerifying || !isUploadComplete}
+                  onClick={handleVerify}
+                  className="w-full py-4 bg-guava-orange text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-20 flex items-center justify-center gap-2 cursor-pointer border-none"
+                >
+                  {isVerifying ? "Verifying Node..." : "Authenticate Global Portal"}
+                  {isVerifying && <RefreshCw className="w-4 h-4 animate-spin" />}
+                </button>
               </div>
-
-              <form onSubmit={handleUpdateUserLimit} className="space-y-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee Name</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl outline-none"
-                    value={selectedUser.displayName}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, displayName: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex justify-between font-bold">
-                    <span>Authorized Micro-credit Limit</span>
-                    <span className="text-guava-orangefont-mono">${(selectedUser.borrowLimit || 0).toLocaleString()} USD</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    min="1000" 
-                    max="15000" 
-                    step="500"
-                    className="w-full accent-guava-orange cursor-pointer"
-                    value={selectedUser.borrowLimit || 1000}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, borrowLimit: Number(e.target.value) })}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-440">FICO Score</label>
-                  <input 
-                    type="number" 
-                    required
-                    className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl outline-none"
-                    value={selectedUser.creditScore}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, creditScore: Number(e.target.value) })}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-440">KYC Status Badge</label>
-                  <select 
-                    className="w-full text-xs font-semibold px-4 py-2 border border-gray-200 rounded-xl outline-none"
-                    value={selectedUser.kycStatus}
-                    onChange={(e) => setSelectedUser({ ...selectedUser, kycStatus: e.target.value as 'PENDING' | 'VERIFIED' | 'REJECTED' })}
-                  >
-                    <option value="VERIFIED">VERIFIED</option>
-                    <option value="PENDING">PENDING</option>
-                    <option value="REJECTED">REJECTED</option>
-                  </select>
-                </div>
-
-                <button 
-                  type="submit"
-                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none"
-                >
-                  Commit updated parameters
-                </button>
-              </form>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      </div>
     </>
   );
 }
@@ -2604,11 +2271,41 @@ function SectionHeader({
   subtitle: string;
 }) {
   return (
-    <div className="mb-6">
-      <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-1">
+    <div className="mb-8">
+      <h3 className="text-xl font-black tracking-tight text-guava-dark uppercase underline decoration-guava-orange decoration-4 underline-offset-8 mb-4">
         {title}
-      </h4>
-      <p className="text-[11px] font-semibold text-gray-400">{subtitle}</p>
+      </h3>
+      <p className="text-xs font-semibold text-gray-400">{subtitle}</p>
+    </div>
+  );
+}
+
+function InputField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  readOnly,
+}: {
+  label: string;
+  value: string;
+  onChange?: (v: string) => void;
+  placeholder?: string;
+  readOnly?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+        {label}
+      </label>
+      <input
+        type="text"
+        value={value}
+        readOnly={readOnly}
+        onChange={(e) => onChange?.(e.target.value)}
+        placeholder={placeholder}
+        className="w-full text-lg font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 transition-colors bg-transparent"
+      />
     </div>
   );
 }
@@ -2656,15 +2353,15 @@ function UploadCard({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative p-5 rounded-3xl border-2 transition-all flex flex-col items-center justify-center gap-3 text-center h-44 overflow-hidden ${
-        isDragOver ? "border-guava-orange bg-guava-orange/5 scale-[1.02]" : ""
-      } ${
+      className={cn(
+        "relative p-6 rounded-[32px] border-2 transition-all flex flex-col items-center justify-center gap-4 text-center h-52 overflow-hidden",
+        isDragOver ? "border-guava-orange bg-guava-orange/5 scale-[1.02]" : "",
         state.status === 'approved' || active
-          ? "bg-emerald-50/20 border-emerald-500/30 text-emerald-950"
+          ? "bg-emerald-50/60 border-emerald-500/30 text-emerald-950"
           : state.status === 'uploading' || state.status === 'analyzing'
           ? "bg-slate-50 border-slate-300"
           : "bg-gray-50 border-dashed border-gray-200 text-gray-400 hover:border-guava-orange/40 hover:bg-gray-50/50"
-      }`}
+      )}
     >
       <input
         type="file"
@@ -2680,13 +2377,13 @@ function UploadCard({
       />
 
       {state.status === 'idle' && !active && (
-        <div className="flex flex-col items-center gap-2 relative z-20 pointer-events-none">
-          <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 shadow-sm">
-            <UploadCloud className="w-5 h-5 text-gray-400" />
+        <div className="flex flex-col items-center gap-3 relative z-20 pointer-events-none">
+          <div className="w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 shadow-sm">
+            <UploadCloud className="w-6 h-6 text-gray-400" />
           </div>
-          <div className="space-y-0.5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">{label}</p>
-            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Drag/Drop or Click</p>
+          <div className="space-y-1">
+            <p className="text-xs font-black uppercase tracking-widest text-gray-700">{label}</p>
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Drag & drop or Click to Upload</p>
           </div>
         </div>
       )}
