@@ -12,7 +12,6 @@ import Sidebar from './components/Sidebar';
 import SupportWidget from './components/SupportWidget';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
-import Marketplace from './pages/Marketplace';
 import LoanApplication from './pages/LoanApplication';
 import Portfolio from './pages/Portfolio';
 import AdminPanel from './pages/AdminPanel';
@@ -29,6 +28,7 @@ import DepositModal from './components/DepositModal';
 import HowItWorks from './pages/HowItWorks';
 import { FirebaseProvider, useFirebase } from './components/FirebaseProvider';
 import { useNotify } from './lib/NotificationContext';
+import { RealtimeListener } from './components/RealtimeListener';
 
 function AppContent() {
   const { profile: user, loading, login, sandboxLogin, logout, updateProfile } = useFirebase();
@@ -187,6 +187,7 @@ function AuthenticatedApp({
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-[#0F172A] font-sans text-black dark:text-white transition-colors">
+      <RealtimeListener />
       <Navbar 
         user={user} 
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
@@ -209,7 +210,6 @@ function AuthenticatedApp({
             <Routes>
               <Route path="/" element={<Dashboard key={user.uid} user={user} />} />
               <Route path="/dashboard" element={<Dashboard key={user.uid} user={user} />} />
-              <Route path="/marketplace" element={<Marketplace user={user} />} />
               <Route path="/apply" element={<LoanApplication user={user} />} />
               <Route path="/portfolio" element={<Portfolio user={user} onDeposit={onDeposit} />} />
               <Route path="/profile" element={<BorrowerProfile key={user.uid} user={user} />} />
