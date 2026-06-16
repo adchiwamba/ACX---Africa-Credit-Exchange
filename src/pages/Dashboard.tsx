@@ -20,7 +20,11 @@ import {
   Building2,
   Search,
   Coins,
-  Briefcase
+  Briefcase,
+  ArrowRight,
+  Lock,
+  UserCheck,
+  CreditCard
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -93,6 +97,8 @@ export default function Dashboard({ user }: DashboardProps) {
     rejected: 235
   });
 
+  const [myBorrowerLoans, setMyBorrowerLoans] = useState<LoanRequest[]>([]);
+
   // State to track live visual credit events
   const [liveEvents, setLiveEvents] = useState<{ id: string; text: string; timestamp: string }[]>([
     { id: 'initial-1', text: "Consumer J. Mubaiwa registered & matching credit score: 720 AAA", timestamp: new Date(Date.now() - 300000).toLocaleTimeString() },
@@ -135,7 +141,8 @@ export default function Dashboard({ user }: DashboardProps) {
           }));
         } else {
           const loans = await firestoreService.getMyLoans(user.uid);
-          const totalBorrowed = loans.filter(l => l.status === LoanStatus.FUNDED).reduce((sum, l) => sum + l.amount, 0);
+          setMyBorrowerLoans(loans);
+          const totalBorrowed = loans.filter(l => [LoanStatus.FUNDED, LoanStatus.DELINQUENT].includes(l.status)).reduce((sum, l) => sum + l.amount, 0);
           setLiveStats(prev => ({
             ...prev,
             borrowed: totalBorrowed
@@ -316,6 +323,285 @@ export default function Dashboard({ user }: DashboardProps) {
         onClose={() => setIsOrderModalOpen(false)} 
         user={user} 
       />
+
+      {/* 🌟 RE-DESIGNED CONSUMER LOAN ACQUISITION PROGRESSIVE PATHWAY */}
+      {!isLender && (
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 rounded-[32px] p-8 text-white border border-slate-800 shadow-2xl relative overflow-hidden my-4 transition-all">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-guava-orange/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-60 h-60 bg-guava-green/5 rounded-full blur-[80px] pointer-events-none" />
+          
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="px-2 py-0.5 bg-guava-orange/20 border border-guava-orange/30 rounded-full flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-guava-orange rounded-full animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-guava-orange">Core Borrower Lifecycle</span>
+                  </div>
+                </div>
+                <h3 className="text-2xl font-black tracking-tight uppercase">Your Digital Credit Corridor Roadmap</h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-2xl font-medium">
+                  Track your progress step-by-step from initial identity registry to alternative AI credit profiling, funding, and micro-payment builds.
+                </p>
+              </div>
+              
+              {/* Global Progress Indicator */}
+              <div className="flex items-center gap-4 bg-slate-900/60 border border-white/5 px-6 py-3 rounded-2xl shrink-0 self-start md:self-auto">
+                <div className="text-left">
+                  <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Overall Journey Completion</p>
+                  <p className="text-lg font-black font-mono mt-0.5 text-guava-orange">
+                    {(() => {
+                      let completed = 0;
+                      if (user.kycStatus === 'VERIFIED') completed++;
+                      if (user.borrowerDetails?.scoreResult) completed++;
+                      if (myBorrowerLoans.length > 0) completed++;
+                      if (myBorrowerLoans.some(l => [LoanStatus.FUNDED, LoanStatus.DELINQUENT, LoanStatus.COMPLETED].includes(l.status))) completed++;
+                      return `${Math.round((completed / 4) * 100)}%`;
+                    })()}
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-full border-2 border-white/10 flex items-center justify-center p-1">
+                  <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-xs font-mono font-bold text-slate-300">
+                    {(() => {
+                      let completed = 0;
+                      if (user.kycStatus === 'VERIFIED') completed++;
+                      if (user.borrowerDetails?.scoreResult) completed++;
+                      if (myBorrowerLoans.length > 0) completed++;
+                      if (myBorrowerLoans.some(l => [LoanStatus.FUNDED, LoanStatus.DELINQUENT, LoanStatus.COMPLETED].includes(l.status))) completed++;
+                      return `${completed}/4`;
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Steps Container */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
+              {/* Connectors for desktop */}
+              <div className="hidden md:block absolute top-[28px] left-[10%] right-[10%] h-[2px] bg-white/5 z-0" />
+              
+              {/* STEP 1: IDENTITY REGISTRY */}
+              {(() => {
+                const isCompleted = user.kycStatus === 'VERIFIED';
+                const isRejected = user.kycStatus === 'REJECTED';
+                return (
+                  <div className="bg-slate-900/50 border border-white/5 hover:border-white/10 p-5 rounded-2xl flex flex-col justify-between min-h-[220px] transition-all group relative z-10 select-none">
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                          isCompleted ? "bg-green-500/20 text-green-400 border border-green-500/20" : "bg-white/5 text-slate-400 border border-white/5"
+                        }`}>
+                          {isCompleted ? <UserCheck className="w-5 h-5" /> : "01"}
+                        </div>
+                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                          isCompleted ? "bg-green-500/10 text-green-400" :
+                          isRejected ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
+                        }`}>
+                          {user.kycStatus}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold tracking-tight text-white mb-1.5">Profile Identity Onboarding</h4>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
+                        {isCompleted 
+                          ? "Your core profile setup, official credentials, and location bounds are verified." 
+                          : "Configure your official bio-registry data and pin your business coordinates."}
+                      </p>
+                    </div>
+                    
+                    {!isCompleted && (
+                      <button 
+                        onClick={() => navigate('/profile')}
+                        className="mt-4 w-full py-2 bg-guava-orange hover:bg-guava-orange/90 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1"
+                      >
+                        Complete KYC Verify
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+                    {isCompleted && (
+                      <div className="mt-4 w-full py-2 bg-green-500/10 text-green-400 rounded-lg text-[9px] font-bold uppercase text-center border border-green-500/10 flex items-center justify-center gap-1">
+                        <Check className="w-3 h-3" /> Core Profile Secured
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* STEP 2: CREDIT SCORING RUN */}
+              {(() => {
+                const isKycCompleted = user.kycStatus === 'VERIFIED';
+                const scoreResult = user.borrowerDetails?.scoreResult;
+                const score = user.creditScore || (scoreResult ? scoreResult.score : null);
+                const rating = scoreResult ? scoreResult.ratingCategory : (score ? (score > 720 ? 'AAA' : score > 680 ? 'AA' : 'A') : null);
+                const isCompleted = !!scoreResult || !!score;
+                return (
+                  <div className={`bg-slate-900/50 border p-5 rounded-2xl flex flex-col justify-between min-h-[220px] transition-all group relative z-10 select-none ${
+                    isCompleted && isKycCompleted ? "border-white/5 hover:border-white/10" : "border-white/5 opacity-60"
+                  }`}>
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                          isCompleted ? "bg-guava-orange/20 text-guava-orange border border-guava-orange/20" : "bg-white/5 text-slate-400 border border-white/15"
+                        }`}>
+                          {isCompleted ? <TrendingUp className="w-5 h-5" /> : "02"}
+                        </div>
+                        {isCompleted ? (
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-guava-orange/15 text-guava-orange">
+                            SC: {score} ({rating})
+                          </span>
+                        ) : (
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-500">
+                            UNRATED
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold tracking-tight text-white mb-1.5">Alternative Data Scoring</h4>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
+                        {isCompleted 
+                          ? "Gemini AI has assessed your phone and metadata indexes for alternative risk categorization." 
+                          : "Calculate your sovereign credit rating to unlock larger liquidity channels."}
+                      </p>
+                    </div>
+
+                    {!isCompleted ? (
+                      <button 
+                        onClick={() => navigate('/profile')}
+                        disabled={!isKycCompleted}
+                        className={`mt-4 w-full py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-lg cursor-pointer flex items-center justify-center gap-1 ${
+                          isKycCompleted 
+                            ? "bg-white/10 hover:bg-white/15 text-white hover:scale-[1.02]" 
+                            : "bg-white/5 text-slate-500 pointer-events-none"
+                        }`}
+                      >
+                        {!isKycCompleted ? <Lock className="w-3 h-3 text-slate-600 mb-0.5 inline" /> : null}
+                        Evaluate alternative
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <div className="mt-4 w-full py-2 bg-guava-orange/15 text-guava-orange border border-guava-orange/20 rounded-lg text-[9px] font-bold uppercase text-center flex items-center justify-center gap-1">
+                        <Check className="w-3 h-3" /> Model Evaluated: {score}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* STEP 3: APPLICATION FOR CREDIT */}
+              {(() => {
+                const isPreStepCompleted = !!user.borrowerDetails?.scoreResult || user.creditScore > 0;
+                const hasApplied = myBorrowerLoans.length > 0;
+                const latestLoan = hasApplied ? myBorrowerLoans[0] : null;
+                const status = latestLoan ? latestLoan.status : 'PENDING APPLICATION';
+                const isCompleted = hasApplied;
+                return (
+                  <div className={`bg-slate-900/50 border p-5 rounded-2xl flex flex-col justify-between min-h-[220px] transition-all group relative z-10 select-none ${
+                    isCompleted && isPreStepCompleted ? "border-white/5 hover:border-white/10" : "border-white/5 opacity-60"
+                  }`}>
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                          isCompleted ? "bg-guava-orange/20 text-guava-orange border border-guava-orange/20" : "bg-white/5 text-slate-400 border border-white/5"
+                        }`}>
+                          {isCompleted ? <Coins className="w-5 h-5" /> : "03"}
+                        </div>
+                        {hasApplied ? (
+                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                            status === LoanStatus.FUNDED ? "bg-green-500/10 text-green-400" :
+                            status === LoanStatus.APPROVED ? "bg-blue-500/10 text-blue-400" :
+                            status === LoanStatus.REJECTED ? "bg-red-500/10 text-red-500" : "bg-amber-500/10 text-amber-400"
+                          }`}>
+                            {status}
+                          </span>
+                        ) : (
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-500">
+                            Empty
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold tracking-tight text-white mb-1.5">Secure Credit Facility</h4>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
+                        {hasApplied 
+                          ? `Application for $${latestLoan?.amount.toLocaleString()} is currently on status: ${status}.` 
+                          : "Establish your borrowing size and terms, then dispatch your asset demand to smart-pools."}
+                      </p>
+                    </div>
+
+                    {!hasApplied ? (
+                      <button 
+                        onClick={() => navigate('/apply')}
+                        disabled={!isPreStepCompleted}
+                        className={`mt-4 w-full py-2 text-[10px] font-bold uppercase tracking-widest transition-all rounded-lg cursor-pointer flex items-center justify-center gap-1 ${
+                          isPreStepCompleted 
+                            ? "bg-white/10 hover:bg-white/15 text-white hover:scale-[1.02]" 
+                            : "bg-white/5 text-slate-500 pointer-events-none"
+                        }`}
+                      >
+                        {!isPreStepCompleted ? <Lock className="w-3 h-3 text-slate-600 mb-0.5 inline" /> : null}
+                        Apply For Credit
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <div className="mt-4 w-full py-2 bg-white/5 text-slate-300 border border-white/10 rounded-lg text-[9px] font-bold uppercase text-center flex items-center justify-center gap-1 hover:bg-white/15 cursor-pointer animate-pulse" onClick={() => navigate('/portfolio')}>
+                        View Application Status
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* STEP 4: TRACK SUB-PAYMENTS */}
+              {(() => {
+                const hasFundedLoan = myBorrowerLoans.some(l => [LoanStatus.FUNDED, LoanStatus.DELINQUENT, LoanStatus.COMPLETED].includes(l.status));
+                const activeLoans = myBorrowerLoans.filter(l => [LoanStatus.FUNDED, LoanStatus.DELINQUENT].includes(l.status));
+                const isCompleted = hasFundedLoan;
+                return (
+                  <div className={`bg-slate-900/50 border p-5 rounded-2xl flex flex-col justify-between min-h-[220px] transition-all group relative z-10 select-none ${
+                    isCompleted ? "border-white/5 hover:border-white/10" : "border-white/5 opacity-60"
+                  }`}>
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                          isCompleted ? "bg-green-500/20 text-green-400 border border-green-500/20" : "bg-white/5 text-slate-400 border border-white/5"
+                        }`}>
+                          {isCompleted ? <CreditCard className="w-5 h-5" /> : "04"}
+                        </div>
+                        {isCompleted ? (
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-green-500/10 text-green-400">
+                            Active Calendar
+                          </span>
+                        ) : (
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-500">
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-sm font-bold tracking-tight text-white mb-1.5">Amortization & Tracking</h4>
+                      <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
+                        {isCompleted 
+                          ? `You have ${activeLoans.length} active funded loan lines. Make swift installments to build score.` 
+                          : "Structured repayment calendars, maturity trackers, and scoring boosts activate here."}
+                      </p>
+                    </div>
+
+                    {isCompleted ? (
+                      <button 
+                        onClick={() => navigate('/repayments')}
+                        className="mt-4 w-full py-2 bg-guava-green hover:bg-guava-green/90 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1"
+                      >
+                        Repayments Hub
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <div className="mt-4 w-full py-2 bg-white/5 text-slate-500 rounded-lg text-[9px] font-bold uppercase text-center border border-white/5 flex items-center justify-center gap-1 select-none">
+                        <Lock className="w-3 h-3" /> Awaiting disbursement
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🚀 INTEGRATED SEARCH & INSTRUMENT TERMINAL */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[32px] shadow-sm relative overflow-hidden transition-all duration-300">
@@ -594,7 +880,7 @@ export default function Dashboard({ user }: DashboardProps) {
                       ) : (
                         <button
                           onClick={() => {
-                            navigate('/marketplace');
+                            navigate('/portfolio');
                           }}
                           className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-slate-900 group-hover:text-white rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all cursor-pointer"
                         >

@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import { UserProfile, UserRole } from '../types';
 import { 
   LayoutDashboard, 
-  Globe, 
   Briefcase, 
   FileText, 
   Settings, 
@@ -33,7 +32,6 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, user, onClose, onToggle, onDeposit }: SidebarProps) {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Globe, label: 'African Market', path: '/marketplace' },
     { icon: Zap, label: 'Market Maker', path: '/market-maker', roles: [UserRole.BANK, UserRole.INVESTOR] },
     { icon: User, label: 'Consumer Passport', path: '/profile', roles: [UserRole.BORROWER] },
     { icon: User, label: 'Merchant Passport', path: '/profile', roles: [UserRole.RETAILER] },

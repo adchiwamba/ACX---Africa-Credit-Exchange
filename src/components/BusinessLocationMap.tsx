@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { APIProvider, Map, AdvancedMarker, Pin, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, Marker } from "@vis.gl/react-google-maps";
 import { MapPin, Compass, HelpCircle } from "lucide-react";
 
 interface BusinessLocationMapProps {
@@ -72,31 +72,7 @@ class MapErrorBoundary extends React.Component<
   }
 }
 
-interface MapContentProps {
-  markerPosition: google.maps.LatLngLiteral;
-  handleMarkerDragEnd: (e: google.maps.MapMouseEvent) => void;
-  primaryColor: string;
-}
 
-const MapContent: React.FC<MapContentProps> = ({
-  markerPosition,
-  handleMarkerDragEnd,
-  primaryColor,
-}) => {
-  const markerLib = useMapsLibrary("marker");
-  if (!markerLib) return null;
-
-  return (
-    <AdvancedMarker
-      position={markerPosition}
-      draggable={true}
-      onDragEnd={handleMarkerDragEnd}
-      title="Drag me to pin your business location!"
-    >
-      <Pin background={primaryColor} borderColor="#ffffff" glyphColor="#ffffff" scale={1.1} />
-    </AdvancedMarker>
-  );
-};
 
 export const BusinessLocationMap: React.FC<BusinessLocationMapProps> = ({
   physicalAddress = "",
@@ -434,10 +410,11 @@ export const BusinessLocationMap: React.FC<BusinessLocationMapProps> = ({
                 internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
                 style={{ width: "100%", height: "100%" }}
               >
-                <MapContent
-                  markerPosition={markerPosition}
-                  handleMarkerDragEnd={handleMarkerDragEnd}
-                  primaryColor={primaryColor}
+                <Marker
+                  position={markerPosition}
+                  draggable={true}
+                  onDragEnd={handleMarkerDragEnd}
+                  title="Drag me to pin your business location!"
                 />
               </Map>
             </APIProvider>
