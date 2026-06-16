@@ -11,6 +11,16 @@
   --color-guava-dark: #0F172A;
 }
 
+@layer utilities {
+  .auth-panel-scroll {
+    overflow-y: scroll;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
 @layer base {
   html {
     @apply transition-colors duration-300;

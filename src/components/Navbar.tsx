@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { UserProfile, UserRole } from '../types';
-import { Menu, Bell, LogOut } from 'lucide-react';
+import { Menu, Bell, LogOut, MonitorCog, Sun, Moon } from 'lucide-react';
 import AcxLogo from './AcxLogo';
+import { useTheme } from '../lib/ThemeContext';
+import { cn } from '../lib/utils';
 
 interface NavbarProps {
   user: UserProfile;
@@ -9,6 +12,9 @@ interface NavbarProps {
 }
 
 export default function Navbar({ user, onMenuClick, onLogout }: NavbarProps) {
+  const { theme, setTheme } = useTheme();
+  const [isThemePanelOpen, setIsThemePanelOpen] = useState(false);
+
   return (
     <header className="bg-white dark:bg-[#1E293B] border-b border-[#E5E5E5] dark:border-white/5 h-16 flex items-center justify-between px-6 z-20 shrink-0 shadow-sm transition-colors">
       <div className="flex items-center gap-6">
@@ -50,10 +56,106 @@ export default function Navbar({ user, onMenuClick, onLogout }: NavbarProps) {
           </div>
         )}
 
-        <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full relative transition-colors">
-          <Bell className="w-5 h-5 dark:text-gray-400" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#1E293B]"></span>
-        </button>
+        <div className="relative flex items-center gap-2">
+          <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full relative transition-colors">
+            <Bell className="w-5 h-5 dark:text-gray-400" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#1E293B]"></span>
+          </button>
+
+          <button
+            onClick={() => setIsThemePanelOpen((prev) => !prev)}
+            className="hidden md:flex items-center gap-2 rounded-2xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 py-2 text-left hover:border-guava-orange/40 transition-all"
+          >
+            <MonitorCog className="w-4 h-4 text-guava-orange" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-widest text-guava-dark dark:text-white leading-none">
+                Aesthetics
+              </p>
+              <p className="text-[8px] font-bold uppercase tracking-wider text-gray-400 mt-1 leading-none">
+                {theme === 'dark' ? 'Portal Dark' : 'Portal Light'}
+              </p>
+            </div>
+          </button>
+
+          {isThemePanelOpen && (
+            <div className="absolute right-0 top-12 z-50 w-[340px] rounded-[28px] border border-gray-100 dark:border-white/10 bg-white dark:bg-[#1E293B] p-4 shadow-2xl shadow-slate-900/10">
+              <div className="px-2 pb-3">
+                <p className="text-sm font-black text-guava-dark dark:text-white">
+                  Interface Aesthetics
+                </p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  Configure your terminal visual portal
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  onClick={() => {
+                    setTheme('light');
+                    setIsThemePanelOpen(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-4 rounded-2xl border p-4 text-left transition-all",
+                    theme === 'light'
+                      ? "border-guava-orange bg-guava-orange/5"
+                      : "border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-guava-orange/30",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "w-11 h-11 rounded-xl flex items-center justify-center transition-all",
+                      theme === 'light'
+                        ? "bg-white text-guava-orange shadow-sm"
+                        : "bg-white dark:bg-white/10 text-gray-400",
+                    )}
+                  >
+                    <Sun className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-black", theme === 'light' ? "text-guava-dark" : "text-gray-400 dark:text-gray-300")}>
+                      Portal Light
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                      High visibility mode
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTheme('dark');
+                    setIsThemePanelOpen(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-4 rounded-2xl border p-4 text-left transition-all",
+                    theme === 'dark'
+                      ? "border-guava-orange bg-guava-orange/5"
+                      : "border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-guava-orange/30",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "w-11 h-11 rounded-xl flex items-center justify-center transition-all",
+                      theme === 'dark'
+                        ? "bg-guava-dark text-guava-orange"
+                        : "bg-white dark:bg-white/10 text-gray-400",
+                    )}
+                  >
+                    <Moon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className={cn("text-sm font-black", theme === 'dark' ? "text-white" : "text-gray-400")}>
+                      Portal Dark
+                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                      Eye-strain reduction
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-3 pl-4 border-l border-gray-100 dark:border-white/5">
           <div className="text-right hidden sm:block">
