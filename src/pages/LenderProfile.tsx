@@ -101,6 +101,17 @@ type Region =
   | "Southeast Asia"
   | "Southern Africa";
 
+type DelinquentLoanStage = "INITIAL" | "WRITTEN" | "FINAL" | "BLACKLISTED";
+
+interface DelinquentLoan {
+  id: string;
+  borrower: string;
+  amount: number;
+  overdueDays: number;
+  creditScore: number;
+  stage: DelinquentLoanStage;
+}
+
 const PNL_DATA = [
   { month: "Jan", revenue: 45000, expenses: 12000, profit: 33000 },
   { month: "Feb", revenue: 52000, expenses: 14000, profit: 38000 },
@@ -315,7 +326,32 @@ export default function LenderProfile({ user }: LenderProfileProps) {
     event.target.value = "";
   };
 
-  const [delinquentLoans, setDelinquentLoans] = useState([]);
+  const [delinquentLoans, setDelinquentLoans] = useState<DelinquentLoan[]>([
+    {
+      id: "dlq_lagos_retail_01",
+      borrower: "Lagos Retail Cooperative",
+      amount: 18400,
+      overdueDays: 37,
+      creditScore: 594,
+      stage: "INITIAL",
+    },
+    {
+      id: "dlq_nairobi_solar_02",
+      borrower: "Nairobi Solar Imports",
+      amount: 42100,
+      overdueDays: 58,
+      creditScore: 561,
+      stage: "WRITTEN",
+    },
+    {
+      id: "dlq_harare_trade_03",
+      borrower: "Harare FMCG Traders",
+      amount: 9800,
+      overdueDays: 74,
+      creditScore: 522,
+      stage: "FINAL",
+    },
+  ]);
 
   // Report Filters
   const [timeRange, setTimeRange] = useState<TimeRange>("6M");
@@ -505,10 +541,60 @@ export default function LenderProfile({ user }: LenderProfileProps) {
     }, 2500);
   };
 
-  const sectionConfig = [
-    { id: "identity", label: "Institutional Identity", icon: Landmark },
-    { id: "liquidity", label: "Capital Allocation", icon: Banknote },
-    { id: "documents", label: "KYB", icon: FileSearch },
+  const sectionConfig: {
+    id: LenderSection;
+    label: string;
+    eyebrow: string;
+    icon: typeof Landmark;
+  }[] = [
+    {
+      id: "identity",
+      label: "Institution",
+      eyebrow: "Entity profile",
+      icon: Landmark,
+    },
+    {
+      id: "liquidity",
+      label: "Capital",
+      eyebrow: "Limits & yield",
+      icon: Banknote,
+    },
+    {
+      id: "income",
+      label: "Performance",
+      eyebrow: "P&L insights",
+      icon: TrendingUp,
+    },
+    {
+      id: "mandate",
+      label: "Mandate",
+      eyebrow: "Markets & sectors",
+      icon: Scale,
+    },
+    {
+      id: "compliance",
+      label: "Controls",
+      eyebrow: "AML & risk",
+      icon: ShieldCheck,
+    },
+    {
+      id: "inventory",
+      label: "Inventory",
+      eyebrow: "Asset rails",
+      icon: Package,
+    },
+    {
+      id: "delinquency",
+      label: "Collections",
+      eyebrow: "Default queue",
+      icon: AlertTriangle,
+    },
+    {
+      id: "documents",
+      label: "KYB",
+      eyebrow: "Evidence vault",
+      icon: FileSearch,
+    },
   ];
 
   const completeness = useMemo(() => {
@@ -529,13 +615,6 @@ export default function LenderProfile({ user }: LenderProfileProps) {
   const displaySections = useMemo(() => {
     return sectionConfig;
   }, []);
-
-  // Handle section visibility changes
-  useEffect(() => {
-    if (activeSection !== "identity" && activeSection !== "liquidity" && activeSection !== "documents") {
-      setActiveSection("identity");
-    }
-  }, [activeSection]);
 
   const inventoryStats = useMemo(() => {
     const totalValue = inventory.reduce(
@@ -1013,157 +1092,246 @@ export default function LenderProfile({ user }: LenderProfileProps) {
         )}
       </AnimatePresence>
 
-      <div className="max-w-[1400px] mx-auto p-4 md:p-8 animate-in fade-in duration-1000">
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+        className="max-w-[1440px] mx-auto p-4 md:p-8"
+      >
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="px-2 py-1 bg-guava-orange text-white text-[8px] font-black uppercase tracking-[0.2em] rounded">
-                Institutional Gateway v4
-              </div>
-              <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400">
-                <Lock className="w-3 h-3 text-guava-orange" />
-                Secured Node Connection
-              </div>
-            </div>
-            <h2 className="text-4xl font-black tracking-tighter text-guava-dark">
-              Business Portal Studio
-            </h2>
-            <p className="text-gray-400 text-sm font-medium mt-1">
-              Configure your deployment parameters for the global ACX credit
-              ecosystem.
-            </p>
-            <div className="mt-4 flex gap-3">
-              <button
-                onClick={clearNodeCache}
-                className="px-6 py-2 bg-white border border-gray-100 text-gray-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-guava-orange transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <RefreshCw className="w-3 h-3 block" />
-                Clear Node Cache
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 bg-white p-2 pr-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:shadow-md">
-            {user.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt="Org Logo"
-                className="w-12 h-12 rounded-2xl object-cover shadow-lg"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-2xl bg-guava-orange flex items-center justify-center text-white italic font-black shadow-lg shadow-guava-orange/20">
-                {isVerified ? "GOLD" : "LVL 0"}
-              </div>
-            )}
-            <div>
-              <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">
-                Node Status
-              </p>
-              <div className="flex items-center gap-2">
-                <p
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.05, ease: "easeOut" }}
+          className="relative overflow-hidden rounded-[28px] bg-slate-950 text-white border border-slate-800 shadow-2xl shadow-slate-300/30 mb-8"
+        >
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-guava-orange via-guava-green to-blue-500" />
+          <div className="relative grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-8 p-6 md:p-8 lg:p-10">
+            <div className="space-y-8">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/70">
+                  <Lock className="w-3.5 h-3.5 text-guava-green" />
+                  Secured Lender Workspace
+                </div>
+                <div
                   className={cn(
-                    "text-sm font-bold uppercase italic tracking-tight",
-                    isVerified ? "text-guava-green" : "text-guava-orange",
+                    "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border",
+                    isVerified
+                      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                      : "border-amber-400/30 bg-amber-400/10 text-amber-200",
                   )}
                 >
-                  {isVerified
-                    ? "Authenticated Institutional Node"
-                    : "Authentication Pending"}
-                </p>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  {isVerified ? "Verified Institution" : "KYB In Progress"}
+                </div>
                 {user.is2FAEnabled && (
-                  <div className="px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded flex items-center gap-1 border border-blue-100">
-                    <ShieldCheck className="w-3 h-3" />
-                    <span className="text-[8px] font-black uppercase">2FA</span>
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-100">
+                    <Fingerprint className="w-3.5 h-3.5" />
+                    2FA Enabled
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        </div>
 
-        {user.organizationDetails && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4">
-              <div className="w-10 h-10 bg-orange-50 text-guava-orange rounded-xl flex items-center justify-center">
-                <Building2 className="w-5 h-5" />
-              </div>
               <div>
-                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                  Industry
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-guava-orange mb-3">
+                  Africa Credit Exchange
                 </p>
-                <p className="text-sm font-black text-guava-dark">
-                  {user.organizationDetails.industry}
+                <h2 className="max-w-4xl text-4xl md:text-6xl font-black tracking-tight text-white">
+                  {lenderData.entityName || "Institutional Lender Profile"}
+                </h2>
+                <p className="mt-4 max-w-2xl text-sm md:text-base font-medium leading-7 text-slate-300">
+                  Manage capital deployment, KYB evidence, asset-backed credit
+                  rails, collections, and compliance controls from one
+                  institutional profile.
                 </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  {
+                    label: "Liquidity",
+                    value:
+                      lenderData.liquidityCapacity > 0
+                        ? `$${lenderData.liquidityCapacity.toLocaleString()}`
+                        : "$0",
+                    icon: Wallet,
+                  },
+                  {
+                    label: "Target Yield",
+                    value: `${lenderData.minYieldTarget || 0}%`,
+                    icon: Percent,
+                  },
+                  {
+                    label: "KYB Readiness",
+                    value: `${completeness}%`,
+                    icon: ShieldCheck,
+                  },
+                  {
+                    label: "Inventory Value",
+                    value: `$${inventoryStats.totalValue.toLocaleString()}`,
+                    icon: Package,
+                  },
+                ].map((stat, index) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.12 + index * 0.05, duration: 0.35 }}
+                    whileHover={{ y: -3 }}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                  >
+                    <stat.icon className="w-4 h-4 text-guava-orange mb-4" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      {stat.label}
+                    </p>
+                    <p className="mt-1 text-lg font-black tracking-tight text-white">
+                      {stat.value}
+                    </p>
+                  </motion.div>
+                ))}
               </div>
             </div>
-            <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4">
-              <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center">
-                <Users className="w-5 h-5" />
+
+            <motion.div
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45, delay: 0.15, ease: "easeOut" }}
+              className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 md:p-6 backdrop-blur"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  {user.photoURL ? (
+                    <img
+                      src={user.photoURL}
+                      alt="Org Logo"
+                      className="w-14 h-14 rounded-2xl object-cover border border-white/10"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-guava-orange flex items-center justify-center text-white font-black shadow-lg shadow-guava-orange/20">
+                      ACX
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Operating Jurisdiction
+                    </p>
+                    <p className="text-base font-black text-white">
+                      {lenderData.jurisdiction || "Not configured"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={clearNodeCache}
+                  className="p-3 rounded-2xl border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:border-guava-orange/50 transition-all"
+                  title="Clear node cache"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
               </div>
-              <div>
-                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                  Company Size
-                </p>
-                <p className="text-sm font-black text-guava-dark">
-                  {user.organizationDetails.companySize} Elements
-                </p>
+
+              <div className="mt-8 space-y-3">
+                {[
+                  {
+                    label: "Institution Type",
+                    value: lenderData.entityType || "Institutional Investor",
+                    icon: Building2,
+                  },
+                  {
+                    label: "Company Size",
+                    value: user.organizationDetails?.companySize || "Pending",
+                    icon: Users,
+                  },
+                  {
+                    label: "Primary Contact",
+                    value:
+                      user.organizationDetails?.contactPerson ||
+                      user.displayName,
+                    icon: Mail,
+                  },
+                ].map((item, index) => (
+                  <motion.div
+                    key={item.label}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.22 + index * 0.05 }}
+                    className="flex items-center gap-4 rounded-2xl border border-white/10 bg-slate-950/40 p-4"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-guava-orange">
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        {item.label}
+                      </p>
+                      <p className="truncate text-sm font-bold text-slate-100">
+                        {item.value}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-            </div>
-            <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center gap-4">
-              <div className="w-10 h-10 bg-green-50 text-guava-green rounded-xl flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                  Contact Person
-                </p>
-                <p className="text-sm font-black text-guava-dark">
-                  {user.organizationDetails.contactPerson}
-                </p>
-              </div>
-            </div>
+            </motion.div>
           </div>
-        )}
+        </motion.div>
 
         {/* Horizontal Navigation Tabs on Top */}
-        <div className="mb-8 border-b border-gray-100 pb-4">
-          <div className="flex flex-wrap gap-2 md:gap-3 overflow-x-auto scroller-hide pb-2">
-            {displaySections.map((section) => (
-              <button
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.18 }}
+          className="mb-8 rounded-[24px] border border-slate-200 bg-white p-2 shadow-sm"
+        >
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(176px,1fr))] gap-2">
+            {displaySections.map((section, index) => (
+              <motion.button
                 key={section.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.22 + index * 0.025 }}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
-                  setActiveSection(section.id as LenderSection);
+                  setActiveSection(section.id);
                   if (step === 2) setStep(1);
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-5 py-3 rounded-full text-xs font-black uppercase tracking-wider transition-all duration-300 border-2 cursor-pointer select-none",
+                  "group flex min-h-[74px] min-w-0 items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all duration-300 cursor-pointer select-none",
                   activeSection === section.id
-                    ? "bg-guava-orange text-white border-guava-orange shadow-md shadow-guava-orange/20 scale-[1.01]"
-                    : "bg-white text-gray-400 border-gray-100/80 hover:border-guava-orange/20 hover:text-guava-dark",
+                    ? "bg-slate-950 text-white border-slate-950 shadow-lg shadow-slate-300/40"
+                    : "bg-slate-50/70 text-slate-500 border-transparent hover:border-guava-orange/30 hover:bg-white hover:text-slate-950",
                 )}
               >
-                <section.icon
+                <div
                   className={cn(
-                    "w-4 h-4",
+                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all",
                     activeSection === section.id
-                      ? "text-white"
-                      : "text-gray-400",
+                      ? "bg-guava-orange text-white"
+                      : "bg-white text-slate-400 group-hover:text-guava-orange",
                   )}
-                />
-                <span>{section.label}</span>
-                {activeSection === section.id && (
-                  <motion.div
-                    layoutId="nav-glow-lender-horizontal"
-                    className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_6px_rgba(255,255,255,0.8)]"
-                  />
-                )}
-              </button>
+                >
+                  <section.icon className="w-4 h-4" />
+                </div>
+                <span className="min-w-0 flex-1 overflow-hidden">
+                  <span className="block whitespace-normal text-xs font-black uppercase tracking-tight leading-tight">
+                    {section.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-1 block whitespace-normal text-[9px] font-bold uppercase tracking-wider leading-snug",
+                      activeSection === section.id
+                        ? "text-white/45"
+                        : "text-slate-400",
+                    )}
+                >
+                  {section.eyebrow}
+                  </span>
+                </span>
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Content Area */}
           <div className="lg:col-span-9">
             <AnimatePresence mode="wait">
@@ -1173,7 +1341,7 @@ export default function LenderProfile({ user }: LenderProfileProps) {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="bg-white rounded-[40px] p-8 md:p-12 border border-gray-100 shadow-xl shadow-gray-200/20"
+                  className="bg-white rounded-[28px] p-6 md:p-10 border border-slate-200 shadow-xl shadow-slate-200/50"
                 >
                   {activeSection === "identity" && (
                     <div className="space-y-10">
@@ -2543,7 +2711,7 @@ export default function LenderProfile({ user }: LenderProfileProps) {
                   animate={{ opacity: 1, scale: 1 }}
                   className="space-y-8"
                 >
-                  <div className="bg-white border-4 border-guava-dark rounded-[48px] p-12 shadow-2xl relative overflow-hidden text-center md:text-left">
+                  <div className="bg-white border border-slate-200 rounded-[28px] p-8 md:p-12 shadow-2xl shadow-slate-200/60 relative overflow-hidden text-center md:text-left">
                     <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                       <div>
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-guava-green/10 text-guava-green rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border border-guava-green/20">
@@ -2638,36 +2806,73 @@ export default function LenderProfile({ user }: LenderProfileProps) {
 
           {/* KYB Status Widget Panel on Right */}
           <div className="lg:col-span-3 space-y-6">
-            <div className="p-8 bg-white border border-gray-100 rounded-[40px] relative overflow-hidden group shadow-sm">
+            <motion.div
+              initial={{ opacity: 0, x: 14 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.28 }}
+              whileHover={{ y: -3 }}
+              className="p-6 bg-white border border-slate-200 rounded-[24px] relative overflow-hidden group shadow-sm sticky top-6"
+            >
               <div className="relative z-10">
                 <div className="flex justify-between items-center mb-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    KYB Readiness
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Profile Readiness
                   </span>
-                  <span className="text-sm font-black text-guava-dark">
+                  <span className="text-sm font-black text-slate-950">
                     {completeness}%
                   </span>
                 </div>
-                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden mb-8">
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-6">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${completeness}%` }}
-                    className="h-full bg-guava-green"
+                    className="h-full bg-gradient-to-r from-guava-orange to-guava-green"
                   />
+                </div>
+                <div className="space-y-3 mb-6">
+                  {[
+                    {
+                      label: "Risk Appetite",
+                      value: lenderData.maxRiskExposure,
+                    },
+                    {
+                      label: "Currency",
+                      value: lenderData.reportingCurrency,
+                    },
+                    {
+                      label: "Active SKUs",
+                      value: inventory.length.toString(),
+                    },
+                  ].map((item) => (
+                    <motion.div
+                      key={item.label}
+                      initial={{ opacity: 0, x: 8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.25, delay: 0.34 }}
+                      className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                        {item.label}
+                      </span>
+                      <span className="text-xs font-black text-slate-950">
+                        {item.value}
+                      </span>
+                    </motion.div>
+                  ))}
                 </div>
                 <button
                   disabled={isVerifying || !isUploadComplete}
                   onClick={handleVerify}
-                  className="w-full py-4 bg-guava-orange text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-20 flex items-center justify-center gap-2 cursor-pointer border-none"
+                  className="w-full py-4 bg-slate-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-30 flex items-center justify-center gap-2 cursor-pointer border-none hover:bg-guava-orange"
                 >
-                  {isVerifying ? "Verifying Node..." : "Authenticate Global Portal"}
+                  {isVerifying ? "Verifying..." : "Authenticate KYB"}
                   {isVerifying && <RefreshCw className="w-4 h-4 animate-spin" />}
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }
@@ -2680,11 +2885,17 @@ function SectionHeader({
   subtitle: string;
 }) {
   return (
-    <div className="mb-8">
-      <h3 className="text-xl font-black tracking-tight text-guava-dark uppercase underline decoration-guava-orange decoration-4 underline-offset-8 mb-4">
+    <div className="mb-8 border-b border-slate-100 pb-6">
+      <div className="inline-flex items-center gap-2 rounded-full bg-guava-orange/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-guava-orange mb-4">
+        <Activity className="w-3.5 h-3.5" />
+        ACX Control Surface
+      </div>
+      <h3 className="text-2xl md:text-3xl font-black tracking-tight text-slate-950">
         {title}
       </h3>
-      <p className="text-xs font-semibold text-gray-400">{subtitle}</p>
+      <p className="text-sm font-semibold text-slate-500 mt-2 max-w-2xl">
+        {subtitle}
+      </p>
     </div>
   );
 }
@@ -2704,7 +2915,7 @@ function InputField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
         {label}
       </label>
       <input
@@ -2713,7 +2924,7 @@ function InputField({
         readOnly={readOnly}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
-        className="w-full text-lg font-bold border-b border-gray-100 focus:border-guava-orange outline-none pb-2 transition-colors bg-transparent"
+        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-bold text-slate-950 outline-none transition-colors focus:border-guava-orange focus:bg-white"
       />
     </div>
   );
@@ -2763,13 +2974,13 @@ function UploadCard({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        "relative p-6 rounded-[32px] border-2 transition-all flex flex-col items-center justify-center gap-4 text-center h-52 overflow-hidden",
+        "relative p-6 rounded-[24px] border transition-all flex flex-col items-center justify-center gap-4 text-center h-52 overflow-hidden",
         isDragOver ? "border-guava-orange bg-guava-orange/5 scale-[1.02]" : "",
         state.status === 'approved' || active
-          ? "bg-emerald-50/20 border-emerald-500/30 text-emerald-950"
+          ? "bg-emerald-50/60 border-emerald-500/30 text-emerald-950"
           : state.status === 'uploading' || state.status === 'analyzing'
           ? "bg-slate-50 border-slate-300"
-          : "bg-gray-50 border-dashed border-gray-200 text-gray-400 hover:border-guava-orange/40 hover:bg-gray-50/50"
+          : "bg-slate-50 border-dashed border-slate-200 text-slate-400 hover:border-guava-orange/40 hover:bg-white"
       )}
     >
       <input
@@ -2787,12 +2998,12 @@ function UploadCard({
 
       {state.status === 'idle' && !active && (
         <div className="flex flex-col items-center gap-3 relative z-20 pointer-events-none">
-          <div className="w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 shadow-sm">
-            <UploadCloud className="w-6 h-6 text-gray-400" />
+          <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 shadow-sm">
+            <UploadCloud className="w-6 h-6 text-slate-400" />
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-black uppercase tracking-widest text-gray-700">{label}</p>
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Drag & drop or Click to Upload</p>
+            <p className="text-xs font-black uppercase tracking-widest text-slate-800">{label}</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Drag, drop, or click to upload</p>
           </div>
         </div>
       )}
