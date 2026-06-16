@@ -497,7 +497,7 @@ export default function LoanApplication({ user }: LoanApplicationProps) {
                     disabled={isSubmitting}
                     className="flex-1 py-5 bg-guava-orange text-white rounded-3xl font-black text-lg flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-guava-orange/20 disabled:opacity-50 cursor-pointer"
                   >
-                    {isSubmitting ? 'Submitting...' : 'Publish to Marketplace'}
+                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
                     {!isSubmitting && <ArrowRight className="w-5 h-5" />}
                   </button>
                </div>
